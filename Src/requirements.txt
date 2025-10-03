@@ -23,3 +23,9 @@ torch>=2.2.0
 rapidfuzz==3.9.7
 blake3>=0.4.1       
 PyPDF2>=3.0.0 
+pytest
+pytest-asyncio
+httpx
+anyio
+python-dotenv
+pytest-cov

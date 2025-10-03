@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.schemas import OnboardingPlan
 from app.ports.talent_graph import project_skill_gap
+from loguru import logger
 
 
 def _format_gap_bullets(gaps: List[tuple[str, float]]) -> str:
@@ -48,6 +49,9 @@ def generate_onboarding(
         allowed_tools=["rag_search", "confluence_page", "jira_epic"],
     )
     exec_res = _planner.execute_plan(plan, user_claims=user_claims)
+    if exec_res.get("output", {}).get("notes") == "fallback_heuristic_plan":
+        logger.warning("Planner fallback engaged for onboarding; returning heuristic plan")
+        return _fallback_onboarding_plan(dev_name, project_key, gaps_algo)
     output = exec_res.get("output", {})
     artifacts = exec_res.get("artifacts", {})
 
@@ -63,4 +67,54 @@ def generate_onboarding(
             "confluence": artifacts.get("step_2:confluence_page") or artifacts.get("confluence_page") or {},
             "jira_epic": artifacts.get("step_3:jira_epic") or artifacts.get("jira_epic") or {},
         },
+    )
+
+
+def _fallback_onboarding_plan(
+    dev_name: str,
+    project_key: str,
+    gaps_algo: List[tuple[str, float]],
+) -> OnboardingPlan:
+    """Produce a deterministic onboarding plan when the planner is unavailable."""
+
+    top_gaps = gaps_algo[:5]
+    if not top_gaps:
+        top_gaps = [("Project domain knowledge", 0.5)]
+
+    gap_entries = [{"topic": path, "confidence": min(0.9, 0.6 + gap / 2)} for path, gap in top_gaps]
+
+    tasks = []
+    day = 1
+    for path, gap in top_gaps[:3]:
+        tasks.append({
+            "day": day,
+            "task": f"Deep dive into '{path}' with focus on closing gap ({gap:.2f}).",
+        })
+        day += 3
+
+    tasks.extend(
+        [
+            {"day": max(day, 7), "task": "Shadow senior engineer and document environment setup."},
+            {"day": max(day + 3, 10), "task": "Deliver a walkthrough or demo to confirm understanding."},
+        ]
+    )
+
+    summary = (
+        f"Self-guided onboarding plan for {dev_name} joining project {project_key}. "
+        "Prioritize the highlighted gaps and pair with team members during the first two weeks."
+    )
+
+    return OnboardingPlan(
+        summary=summary,
+        gaps=gap_entries,
+        two_week_plan=tasks,
+        artifacts={
+            "confluence": {
+                "url": "Planner fallback engaged; create Confluence page manually.",
+            },
+            "jira_epic": {
+                "url": "Planner fallback engaged; create Jira epic manually.",
+            },
+        },
+        notice="Planner service unavailable; delivered heuristic onboarding plan. Please retry later.",
     )

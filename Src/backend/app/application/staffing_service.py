@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import math
 from typing import Dict, List
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.application.talent_service import get_dev_skill_vector, get_project_required_skills, recency_boost
@@ -48,15 +49,16 @@ def rank_candidates(db: Session, tenant_id: str, project: m.Project) -> List[Dic
         requirement_total = sum(requirements.values()) or 1.0
         proven = sum(min(vector.get(path, 0.0), weight) for path, weight in requirements.items()) / requirement_total
 
-        last_seen = db.execute(
-            """
-            SELECT max(ds.last_seen_at)
-            FROM developer_skill ds
-            JOIN skill s ON s.id = ds.skill_id
-            WHERE ds.developer_id = :developer_id AND s.path_cache = ANY(:paths)
-            """,
-            {"developer_id": developer.id, "paths": list(requirements.keys())},
-        ).scalar()
+        paths = list(requirements.keys())
+        last_seen = None
+        if paths:
+            stmt = (
+                select(func.max(m.DeveloperSkill.last_seen_at))
+                .join(m.Skill, m.Skill.id == m.DeveloperSkill.skill_id)
+                .where(m.DeveloperSkill.developer_id == developer.id)
+                .where(m.Skill.path_cache.in_(paths))
+            )
+            last_seen = db.execute(stmt).scalar()
         recency = recency_boost(_ensure_aware(last_seen if isinstance(last_seen, datetime) else None))
 
         availability = 0.8

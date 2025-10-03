@@ -18,7 +18,10 @@ def chat_json(prompt: str, schema_hint: str) -> Dict[str, Any]:
     if not settings.cerebras_base_url or not settings.cerebras_api_key or not settings.cerebras_model:
         raise ExternalServiceError("Cerebras configuration is incomplete")
 
-    url = f"{settings.cerebras_base_url.rstrip('/')}/v1/chat/completions"
+    base = settings.cerebras_base_url.rstrip("/")
+    if base.endswith("/v1"):
+        base = base[: -len("/v1")]
+    url = f"{base}/v1/chat/completions"
     payload = {
         "model": settings.cerebras_model,
         "messages": [

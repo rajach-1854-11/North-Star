@@ -5,20 +5,15 @@ from __future__ import annotations
 from collections.abc import Iterable
 from io import BytesIO
 from typing import Any, List
+from uuid import UUID
 
 from fastapi import HTTPException
 from loguru import logger
-from qdrant_client import QdrantClient
-try:
-    import qdrant_client.exceptions as qexc  # type: ignore[reportMissingImports]
-    ResponseHandlingException = getattr(qexc, "ResponseHandlingException", Exception)
-    UnexpectedResponse = getattr(qexc, "UnexpectedResponse", Exception)
-except Exception:  # pragma: no cover - fallback for older versions
-    ResponseHandlingException = UnexpectedResponse = Exception  # type: ignore[assignment]
 from qdrant_client.http import models as qm
 
-from app.adapters.dense_bge import embed_batch, embed_one
-from app.adapters.qdrant_client import get_client
+from app.adapters.dense_bge import embed_batch
+from app.adapters.qdrant_client import ensure_collection as ensure_qdrant_collection, get_client, upsert_points
+from app.domain.errors import ExternalServiceError
 from app.adapters.sparse_hash import encode_sparse
 from app.utils.chunk import smart_chunks
 from app.utils.hashing import hash_text
@@ -29,49 +24,35 @@ def _collection_name(tenant_id: str, project_key: str) -> str:
     return f"{tenant_id}__{project_key}"
 
 
-def _ensure_collection(client: QdrantClient, name: str, dense_size: int) -> None:
-    """Create the collection if it does not exist."""
-    try:
-        client.get_collection(name)
-        return
-    except (ResponseHandlingException, UnexpectedResponse):
-        logger.info("Creating Qdrant collection", collection=name, dense_size=dense_size)
-
-    client.recreate_collection(
-        collection_name=name,
-        vectors_config={"dense": qm.VectorParams(size=dense_size, distance=qm.Distance.COSINE)},
-    )
-
-
 def _to_points(
     chunks: Iterable[str],
     dense_vecs: List[List[float]],
     tenant_id: str,
     project_key: str,
-) -> List[qm.PointStruct]:
-    """Convert embedded chunks into Qdrant point structs."""
-    points: List[qm.PointStruct] = []
+) -> tuple[List[str], List[List[float]], List[qm.SparseVector], List[dict[str, Any]]]:
+    """Convert embedded chunks into components suitable for upsert."""
+    ids: List[str] = []
+    sparse_vectors: List[qm.SparseVector] = []
+    payloads: List[dict[str, Any]] = []
     for index, (chunk, vector) in enumerate(zip(chunks, dense_vecs)):
         sparse = encode_sparse(chunk)
-        chunk_id = hash_text(chunk, namespace=f"{tenant_id}:{project_key}")
-        points.append(
-            qm.PointStruct(
-                id=chunk_id,
-                vector={
-                    "dense": vector,
-                    "sparse": qm.SparseVector(indices=sparse.indices, values=sparse.values),
-                },
-                payload={
-                    "text": chunk,
-                    "chunk_id": chunk_id,
-                    "tenant_id": tenant_id,
-                    "project_key": project_key,
-                    "source": "upload",
-                    "position": index,
-                },
-            )
+        digest = hash_text(chunk, namespace=f"{tenant_id}:{project_key}")
+        chunk_uuid = UUID(hex=digest[:32])
+        chunk_id = str(chunk_uuid)
+        ids.append(chunk_id)
+        sparse_vectors.append(qm.SparseVector(indices=sparse.indices, values=sparse.values))
+        payloads.append(
+            {
+                "text": chunk,
+                "chunk_id": chunk_id,
+                "chunk_hash": digest,
+                "tenant_id": tenant_id,
+                "project_key": project_key,
+                "source": "upload",
+                "position": index,
+            }
         )
-    return points
+    return ids, dense_vecs, sparse_vectors, payloads
 
 
 def ingest_text(
@@ -100,22 +81,20 @@ def ingest_text(
 
     try:
         dense_vecs = embed_batch(chunks)
-    except Exception as exc:  # noqa: BLE001 - upstream libraries surface generic exceptions
-        logger.warning("embed_batch failed; falling back to sequential embedding", error=str(exc))
-        dense_vecs = [embed_one(chunk) for chunk in chunks]
+    except Exception as exc:  # noqa: BLE001 - upstream library raises broad errors
+        raise ExternalServiceError(f"Embedding model unavailable: {exc}") from exc
 
     if not dense_vecs or not dense_vecs[0]:
-        raise HTTPException(status_code=500, detail="Embedding returned empty vectors")
+        raise ExternalServiceError("Embedding returned empty vectors")
 
-    client = get_client()
     collection = _collection_name(tenant_id, project_key)
-    _ensure_collection(client, collection, dense_size=len(dense_vecs[0]))
+    ensure_qdrant_collection(collection, dense_dim=len(dense_vecs[0]))
 
-    points = _to_points(chunks, dense_vecs, tenant_id, project_key)
-    client.upsert(collection_name=collection, points=points, wait=True)
-    logger.info("Ingested chunks", count=len(points), collection=collection)
+    ids, dense_vectors, sparse_vectors, payloads = _to_points(chunks, dense_vecs, tenant_id, project_key)
+    upsert_points(collection, ids, dense_vectors, sparse_vectors, payloads)
+    logger.info("Ingested chunks", count=len(ids), collection=collection)
 
-    return {"collection": collection, "count": len(points), "chunks": len(points)}
+    return {"collection": collection, "count": len(ids), "chunks": len(ids)}
 
 
 def _pdf_to_text(file_bytes: bytes) -> str:
@@ -136,6 +115,28 @@ def _pdf_to_text(file_bytes: bytes) -> str:
     return "\n\n".join(pages).strip()
 
 
+def extract_text(file_bytes: bytes, filename: str) -> str:
+    """Decode file bytes into plain text using best-effort heuristics."""
+
+    name = (filename or "").lower()
+    if name.endswith((".md", ".markdown", ".txt")):
+        try:
+            return file_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            return file_bytes.decode("latin-1", errors="ignore")
+
+    if name.endswith(".pdf"):
+        text = _pdf_to_text(file_bytes)
+        if not text:
+            raise HTTPException(status_code=422, detail="Could not extract text from PDF")
+        return text
+
+    try:
+        return file_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return file_bytes.decode("latin-1", errors="ignore")
+
+
 def ingest_file(
     file_bytes: bytes,
     filename: str,
@@ -143,22 +144,6 @@ def ingest_file(
     project_key: str,
 ) -> dict[str, Any]:
     """Ingest a file by dispatching to the correct decoder."""
-    name = (filename or "").lower()
-    if name.endswith((".md", ".markdown", ".txt")):
-        try:
-            text = file_bytes.decode("utf-8")
-        except UnicodeDecodeError:
-            text = file_bytes.decode("latin-1", errors="ignore")
-        return ingest_text(text, tenant_id, project_key)
 
-    if name.endswith(".pdf"):
-        text = _pdf_to_text(file_bytes)
-        if not text:
-            raise HTTPException(status_code=422, detail="Could not extract text from PDF")
-        return ingest_text(text, tenant_id, project_key)
-
-    try:
-        text = file_bytes.decode("utf-8")
-    except UnicodeDecodeError:
-        text = file_bytes.decode("latin-1", errors="ignore")
+    text = extract_text(file_bytes, filename)
     return ingest_text(text, tenant_id, project_key)

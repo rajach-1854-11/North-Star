@@ -1,4 +1,34 @@
 Metadata-Version: 2.4
 Name: northstar-backend
 Version: 0.1.0
-Requires-Python: >=3.10
+Requires-Python: >=3.12
+Requires-Dist: fastapi==0.112.0
+Requires-Dist: uvicorn[standard]==0.30.5
+Requires-Dist: pydantic==2.8.2
+Requires-Dist: pydantic-settings==2.4.0
+Requires-Dist: sqlalchemy==2.0.34
+Requires-Dist: psycopg2-binary==2.9.9
+Requires-Dist: alembic==1.13.2
+Requires-Dist: redis==5.0.7
+Requires-Dist: rq==1.16.2
+Requires-Dist: httpx==0.27.2
+Requires-Dist: requests==2.32.3
+Requires-Dist: qdrant-client==1.9.2
+Requires-Dist: python-multipart==0.0.9
+Requires-Dist: passlib[bcrypt]==1.7.4
+Requires-Dist: pyjwt[crypto]==2.9.0
+Requires-Dist: python-dotenv==1.0.1
+Requires-Dist: loguru==0.7.2
+Requires-Dist: opentelemetry-sdk==1.25.0
+Requires-Dist: opentelemetry-exporter-otlp==1.25.0
+Requires-Dist: sentence-transformers==3.0.1
+Requires-Dist: torch>=2.2.0
+Requires-Dist: rapidfuzz==3.9.7
+Requires-Dist: blake3>=0.4.1
+Requires-Dist: PyPDF2>=3.0.0
+Provides-Extra: dev
+Requires-Dist: ruff==0.5.5; extra == "dev"
+Requires-Dist: mypy==1.11.1; extra == "dev"
+Requires-Dist: pyright==1.1.375; extra == "dev"
+Requires-Dist: types-redis; extra == "dev"
+Requires-Dist: types-requests; extra == "dev"

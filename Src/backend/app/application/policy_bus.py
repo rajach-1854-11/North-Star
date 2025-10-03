@@ -2,23 +2,48 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Mapping, Set
 
 from fastapi import HTTPException
 
-ToolName = str
-RoleName = str
-
-TOOL_POLICY: Dict[ToolName, Dict[str, List[RoleName]]] = {
-    "jira_epic": {"roles": ["PO"]},
-    "confluence_page": {"roles": ["PO"]},
-    "rag_search": {"roles": ["PO", "Dev"]},
+ALLOWED_TOOLS: Mapping[str, Set[str]] = {
+    "Admin": {
+        "rag_search",
+        "onboarding_generate",
+        "jira_epic",
+        "confluence_page",
+        "skills_profile",
+        "staffing_recommend",
+        "publish_artifact",
+    },
+    "PO": {
+        "rag_search",
+        "onboarding_generate",
+        "jira_epic",
+        "confluence_page",
+        "skills_profile",
+        "staffing_recommend",
+        "publish_artifact",
+    },
+    "BA": {
+        "rag_search",
+        "onboarding_generate",
+        "jira_epic",
+        "confluence_page",
+        "skills_profile",
+        "staffing_recommend",
+        "publish_artifact",
+    },
+    "Dev": {
+        "rag_search",
+        "skills_profile",
+    },
 }
 
 
-def enforce(tool: ToolName, role: RoleName) -> None:
-    """Ensure *role* has access to the requested *tool* or raise ``HTTPException``."""
+def enforce(tool: str, role: str) -> None:
+    """Ensure *role* can execute *tool*; raise ``HTTPException`` otherwise."""
 
-    allowed = TOOL_POLICY.get(tool, {}).get("roles", [])
-    if role not in allowed:
-        raise HTTPException(status_code=403, detail=f"Access denied for tool={tool}")
+    allowed = ALLOWED_TOOLS.get(role, set())
+    if tool not in allowed:
+        raise HTTPException(status_code=403, detail=f"{role} cannot run {tool}")

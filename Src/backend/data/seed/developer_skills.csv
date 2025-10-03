@@ -1,0 +1,3 @@
+username,skill_name,score,confidence
+dev_alex,Kafka,0.7,0.6
+dev_alex,PostgreSQL,0.6,0.7

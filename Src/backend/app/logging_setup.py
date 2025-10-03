@@ -9,10 +9,20 @@ from typing import Any
 from loguru import logger
 
 
+def _inject_defaults(record: dict[str, Any]) -> None:
+    """Guarantee required ``extra`` keys exist for the log formatter."""
+
+    extra = record.setdefault("extra", {})
+    extra.setdefault("req", "")
+    extra.setdefault("route", "")
+    extra.setdefault("tenant", "")
+
+
 def setup_logging() -> None:
     """Configure Loguru with structured JSON-friendly output."""
 
     logger.remove()
+    logger.configure(extra={"req": "", "route": "", "tenant": ""}, patcher=_inject_defaults)
     fmt = (
         "{time:YYYY-MM-DDTHH:mm:ss.SSS} | {level} | "
         "req={extra[req]} | route={extra[route]} | tenant={extra[tenant]} | msg={message}"

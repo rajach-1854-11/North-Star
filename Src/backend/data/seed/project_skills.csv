@@ -1,0 +1,4 @@
+project_key,skill_name,importance
+PX,Kafka,0.9
+PX,OpenTelemetry,0.6
+PB,PostgreSQL,0.8

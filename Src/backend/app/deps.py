@@ -1,22 +1,70 @@
 # FILE: backend/app/deps.py
 from __future__ import annotations
-from typing import Any, Callable, Dict, Generator
+import logging
+from typing import Any, Callable, Dict, Generator, Iterable
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.orm import sessionmaker, Session
 import jwt
 from jwt import PyJWTError
 
 from app.config import settings
 
-# --- SQLAlchemy engine + session factory ---
+
+logger = logging.getLogger(__name__)
+
+# --- SQLAlchemy engine + session factory ----------------------------------------------------
+def _build_db_url() -> URL:
+    """Construct the SQLAlchemy URL used for engine creation."""
+
+    if settings.database_url:
+        return make_url(settings.database_url)
+
+    return URL.create(
+        drivername="postgresql+psycopg2",
+        username=settings.postgres_user,
+        password=settings.postgres_password,
+        host=settings.postgres_host,
+        port=settings.postgres_port,
+        database=settings.postgres_db,
+    )
+
+
+def _build_postgres_connect_args() -> Dict[str, Any]:
+    """Apply SSL / timeout settings when connecting to managed Postgres."""
+
+    connect_args: Dict[str, Any] = {"sslmode": "require"}
+    if settings.postgres_sslmode:
+        connect_args["sslmode"] = settings.postgres_sslmode
+    if settings.postgres_sslrootcert:
+        connect_args["sslrootcert"] = settings.postgres_sslrootcert
+    if settings.postgres_connect_timeout:
+        connect_args["connect_timeout"] = settings.postgres_connect_timeout
+    return connect_args
+
+
+def _build_connect_args(url: URL) -> Dict[str, Any]:
+    dialect_name = url.get_dialect().name
+    if dialect_name == "sqlite":
+        return {"check_same_thread": False}
+    if dialect_name.startswith("postgresql"):
+        return _build_postgres_connect_args()
+    return {}
+
+
+_db_url = _build_db_url()
+logger.info("Initializing database engine", extra={"db_url": _db_url.render_as_string(hide_password=True)})
 engine = create_engine(
-    f"postgresql+psycopg2://{settings.postgres_user}:{settings.postgres_password}"
-    f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}",
+    _db_url,
+    connect_args=_build_connect_args(_db_url),
     pool_pre_ping=True,
-    # Optional tuning knobs (safe defaults for dev; tweak for prod):
-    # pool_size=5, max_overflow=10, pool_recycle=1800, pool_timeout=30, future=True
+    pool_recycle=300,
+    pool_size=5,
+    max_overflow=10,
 )
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 def get_db() -> Generator[Session, None, None]:
@@ -65,14 +113,26 @@ def get_current_user(request: Request) -> Dict[str, Any]:
     request.state.user = claims
     return claims
 
-def require_role(required: str) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
-    """
-    Dependency factory: require a specific role (e.g., 'PO', 'Dev').
-    Usage: user = Depends(require_role("PO"))
-    """
+def require_role(*allowed: str | Iterable[str]) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+    """Dependency factory allowing multiple roles (supports tuples/lists)."""
+
+    roles: set[str] = set()
+    for item in allowed:
+        if isinstance(item, str):
+            roles.add(item)
+        else:
+            roles.update(str(role) for role in item)
+
+    if not roles:
+        raise ValueError("require_role must receive at least one allowed role")
+
     def _dep(user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
         role = user.get("role")
-        if role != required:
-            raise HTTPException(status_code=403, detail=f"Role {role} not allowed; need {required}")
+        if role not in roles:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Role {role} not allowed, need one of {sorted(roles)}",
+            )
         return user
+
     return _dep

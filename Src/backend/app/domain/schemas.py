@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal
+from datetime import date, datetime
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -41,6 +42,111 @@ class RetrieveResp(BaseModel):
     """Response wrapper for retrieval results."""
 
     results: List[RetrieveHit]
+    message: str | None = None
+
+
+class ProjectResp(BaseModel):
+    """Project representation used for create and read operations."""
+
+    id: int
+    key: str
+    name: str
+    description: Optional[str] = None
+
+
+class UserResp(BaseModel):
+    """Lightweight projection of a platform user."""
+
+    id: int
+    username: str
+    role: str
+    tenant_id: str
+
+
+class UserListResp(BaseModel):
+    """Collection wrapper for user listings."""
+
+    users: List[UserResp]
+
+
+class UserRolePatchReq(BaseModel):
+    """Request body for updating a user's role."""
+
+    role: Literal["Admin", "PO", "BA", "Dev"]
+
+
+class AssignmentCreateReq(BaseModel):
+    """Request body for assignment creation."""
+
+    developer_id: int
+    project_id: int
+    role: Optional[str] = None
+    start_date: Optional[date] = None
+
+
+class AssignmentUpdateReq(BaseModel):
+    """Request body for updating an existing assignment."""
+
+    role: Optional[str] = None
+    status: Optional[str] = None
+    end_date: Optional[date] = None
+
+
+class AssignmentResp(BaseModel):
+    """Assignment projection returned from admin endpoints."""
+
+    id: int
+    developer_id: int
+    project_id: int
+    role: Optional[str] = None
+    status: str
+
+
+class AssignmentListResp(BaseModel):
+    """Wrapper for assignment listings."""
+
+    assignments: List[AssignmentResp]
+
+
+class UploadResp(BaseModel):
+    """Response payload for document ingestion."""
+
+    project_key: str
+    collection: str
+    count: int
+    chunks: int
+    message: str | None = None
+
+
+class AuditEntry(BaseModel):
+    """Single audit log entry."""
+
+    ts: datetime
+    actor: int
+    action: str
+    status: int
+    request_id: str
+
+
+class AuditResp(BaseModel):
+    """Audit log response wrapper."""
+
+    items: List[AuditEntry]
+
+
+class SkillEntry(BaseModel):
+    """Single skill row for a developer."""
+
+    path: str
+    score: float
+    last_seen: datetime | None
+
+
+class SkillProfileResp(BaseModel):
+    """Developer skill profile response."""
+
+    developer_id: int
+    skills: List[SkillEntry]
 
 
 class StaffCandidate(BaseModel):
@@ -83,6 +189,7 @@ class OnboardingPlan(BaseModel):
     gaps: List[Dict[str, Any]]
     two_week_plan: List[Dict[str, Any]]
     artifacts: Dict[str, Artifact]
+    notice: str | None = None
 
 
 class OnboardingResp(BaseModel):
@@ -90,6 +197,7 @@ class OnboardingResp(BaseModel):
 
     plan: OnboardingPlan
     audit_ref: str
+    message: str | None = None
 
 
 class AgentQueryReq(BaseModel):
@@ -109,3 +217,4 @@ class AgentQueryResp(BaseModel):
     plan: Dict[str, Any]
     artifacts: Dict[str, Any]
     output: Dict[str, Any]
+    message: str | None = None

@@ -2,12 +2,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.domain.schemas import RetrieveReq, RetrieveResp
 from app.ports.retriever import rag_search, api_response   # <-- correct module
-from app.deps import get_current_user
+from app.deps import require_role
 
 router = APIRouter(prefix="/retrieve", tags=["retrieve"])
 
 @router.post("", response_model=RetrieveResp)
-def retrieve(req: RetrieveReq, user: dict = Depends(get_current_user)):
+def retrieve(req: RetrieveReq, user: dict = Depends(require_role("Admin", "PO", "BA", "Dev"))):
     tenant_id = user.get("tenant_id")
     accessible_projects = user.get("accessible_projects", [])
     targets = req.targets or ["global"]

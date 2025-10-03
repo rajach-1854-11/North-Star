@@ -1,0 +1,4 @@
+username,role,password_hash
+po_admin,PO,x
+ba_nancy,BA,x
+dev_alex,Dev,x

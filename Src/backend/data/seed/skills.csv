@@ -1,0 +1,4 @@
+name,parent,importance
+Kafka,,0.8
+PostgreSQL,,0.7
+OpenTelemetry,,0.6

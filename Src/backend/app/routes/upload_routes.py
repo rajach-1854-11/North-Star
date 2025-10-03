@@ -5,21 +5,29 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
+from sqlalchemy.orm import Session
 
-from app.application.ingestion_service import ingest_file
-from app.deps import get_current_user
+from app.deps import get_db, require_role
+from app.domain.schemas import UploadResp
+from app.ports.ingestion import ingest_upload
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
 
-@router.post("")
+@router.post("", response_model=UploadResp)
 async def upload(
     project_key: str = Form(...),
     file: UploadFile = File(...),
-    user: Dict[str, Any] = Depends(get_current_user),
-) -> Dict[str, Any]:
+    db: Session = Depends(get_db),
+    user: Dict[str, Any] = Depends(require_role("Admin", "PO")),
+) -> UploadResp:
     """Ingest an uploaded file for the specified project."""
 
-    tenant_id = user["tenant_id"]
     data = await file.read()
-    return ingest_file(data, file.filename or "", tenant_id, project_key)
+    return ingest_upload(
+        db,
+        user_claims=user,
+        project_key=project_key,
+        file_bytes=data,
+        filename=file.filename or "",
+    )

@@ -19,7 +19,7 @@ def _search_dense(collection: str, query_dense: List[float], k: int):
         limit=k,
         with_payload=True,
         with_vectors=False,
-        params=qm.SearchParams(hnsw_ef=128, exact=False),
+        search_params=qm.SearchParams(hnsw_ef=128, exact=False),
     )
 
 
@@ -27,11 +27,11 @@ def _search_sparse(collection: str, query_sparse: qm.SparseVector, k: int):
     """Search sparse vectors within a collection."""
     return client.search(
         collection_name=collection,
-        sparse_vector=query_sparse,
+        query_vector=qm.NamedSparseVector(name="sparse", vector=query_sparse),
         limit=k,
         with_payload=True,
         with_vectors=False,
-        params=qm.SearchParams(hnsw_ef=128, exact=False),
+        search_params=qm.SearchParams(hnsw_ef=128, exact=False),
     )
 
 
