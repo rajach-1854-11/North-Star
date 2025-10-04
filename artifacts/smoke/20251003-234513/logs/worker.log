@@ -1,0 +1,70 @@
+2025-10-04 05:15:16,229 | INFO | __main__ | Starting RQ worker
+2025-10-04 05:15:16,310 | INFO | rq.worker | Worker rq:worker:8043651e58f642d187e8c8b2303104b5 started with PID 21932, version 1.16.2
+2025-10-04 05:15:16,310 | INFO | rq.worker | Subscribing to channel rq:pubsub:8043651e58f642d187e8c8b2303104b5
+2025-10-04 05:15:16,494 | INFO | rq.worker | *** Listening on events...
+2025-10-04 05:15:16,548 | INFO | rq.worker | Cleaning registries for queue: events
+2025-10-04 05:15:16,878 | INFO | rq.worker | events: worker.handlers.github_handler.handle_github_event({'event': 'push', 'payload': {'ref': 'refs/heads/main', 'before': '11111111...) (d15d0e9e-a9e4-48ec-a961-2fb608753f43)
+2025-10-04 05:15:17,523 | INFO | worker.handlers.github_handler | github_handler processing webhook
+2025-10-04 05:15:18,111 | INFO | httpx | HTTP Request: POST https://api.cerebras.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2025-10-04 05:15:22,073 | ERROR | rq.worker | [Job d15d0e9e-a9e4-48ec-a961-2fb608753f43]: exception raised while executing (worker.handlers.github_handler.handle_github_event)
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.NotNullViolation: null value in column "last_seen_at" of relation "developer_skill" violates not-null constraint
+DETAIL:  Failing row contains (6, 1, 10, 0.9, 0.9, null, gh:event, null).
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\rq\worker.py", line 1430, in perform_job
+    rv = job.perform()
+         ^^^^^^^^^^^^^
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\rq\job.py", line 1280, in perform
+    self._result = self._execute()
+                   ^^^^^^^^^^^^^^^
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\rq\job.py", line 1317, in _execute
+    result = self.func(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\worker\handlers\github_handler.py", line 21, in handle_github_event
+    extract_skills_and_write(event, body)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\worker\handlers\skill_extractor.py", line 82, in extract_skills_and_write
+    _write_skill(assertion)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\worker\handlers\skill_extractor.py", line 55, in _write_skill
+    conn.execute(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1418, in execute
+    return meth(
+           ^^^^^
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 515, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1640, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\sqlalchemy\engine\default.py", line 941, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.NotNullViolation) null value in column "last_seen_at" of relation "developer_skill" violates not-null constraint
+DETAIL:  Failing row contains (6, 1, 10, 0.9, 0.9, null, gh:event, null).
+
+[SQL: 
+                INSERT INTO developer_skill(developer_id, skill_id, score, confidence, evidence_ref)
+                VALUES(%(developer_id)s, %(skill_id)s, %(score)s, %(confidence)s, %(evidence)s)
+                ON CONFLICT (developer_id, skill_id) DO UPDATE SET
+                    score = greatest(developer_skill.score, EXCLUDED.score),
+                    confidence = greatest(developer_skill.confidence, EXCLUDED.confidence),
+                    last_seen_at = now()
+                ]
+[parameters: {'developer_id': 1, 'skill_id': 10, 'score': 0.9, 'confidence': 0.9, 'evidence': 'gh:event'}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+

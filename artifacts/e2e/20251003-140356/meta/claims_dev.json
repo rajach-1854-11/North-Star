@@ -1,0 +1,16 @@
+{
+  "sub": "dev_alex",
+  "user_id": 4,
+  "role": "Dev",
+  "tenant_id": "tenant1",
+  "accessible_projects": [
+    "PB",
+    "PX",
+    "global"
+  ],
+  "iss": "northstar",
+  "aud": "northstar",
+  "iat": 1759500252,
+  "exp": 1759503852,
+  "developer_id": 1
+}

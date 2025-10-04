@@ -1,0 +1,60 @@
+INFO:     Started server process [20996]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
+2025-10-04T03:37:48.480 | INFO | req= | route=/openapi.json | tenant=unknown | msg=START
+2025-10-04T03:37:48.526 | INFO | req= | route=/openapi.json | tenant=unknown | msg=END status=200 ms=41.1
+INFO:     127.0.0.1:53403 - "GET /openapi.json HTTP/1.1" 200 OK
+2025-10-04T03:37:49.090 | INFO | req= | route=/auth/token | tenant=unknown | msg=START
+INFO:     127.0.0.1:53404 - "POST /auth/token?username=po_admin&password=x HTTP/1.1" 200 OK
+2025-10-04T03:37:49.114 | INFO | req= | route=/auth/token | tenant=unknown | msg=END status=200 ms=25.4
+2025-10-04T03:37:49.114 | INFO | req= | route=/projects | tenant=unknown | msg=START
+INFO:     127.0.0.1:53404 - "POST /projects?key=PX&name=Realtime%20Pricing&description=Smoke%20validation%20project HTTP/1.1" 409 Conflict
+2025-10-04T03:37:49.130 | INFO | req= | route=/projects | tenant=tenant1 | msg=END status=409 ms=13.8
+2025-10-04T03:37:49.139 | INFO | req= | route=/projects/PX | tenant=unknown | msg=START
+INFO:     127.0.0.1:53404 - "GET /projects/PX HTTP/1.1" 200 OK
+2025-10-04T03:37:49.149 | INFO | req= | route=/projects/PX | tenant=tenant1 | msg=END status=200 ms=17.3
+2025-10-04T03:37:49.162 | INFO | req= | route=/upload | tenant=unknown | msg=START
+2025-10-04T03:37:57.326 | INFO | req= | route= | tenant= | msg=Ingested chunks
+2025-10-04T03:37:57.351 | INFO | req= | route= | tenant=tenant1 | msg=Stored fallback knowledge chunks
+INFO:     127.0.0.1:53404 - "POST /upload HTTP/1.1" 200 OK
+2025-10-04T03:37:57.353 | INFO | req= | route=/upload | tenant=tenant1 | msg=END status=200 ms=8195.0
+2025-10-04T03:37:57.353 | INFO | req= | route=/retrieve | tenant=unknown | msg=START
+2025-10-04T03:37:57.369 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T03:37:58.475 | ERROR | req= | route= | tenant= | msg=Hybrid retriever crashed; switching to fallback
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\retriever.py", line 114, in rag_search
+    raw = hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\hybrid_retriever.py", line 124, in search
+    for point in qdrant_hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\qdrant_client.py", line 156, in hybrid_search
+    dense_points = client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_client.py", line 353, in search
+    return self._client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_remote.py", line 518, in search
+    search_result = self.http.points_api.search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 1388, in search_points
+    return self._build_for_search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 636, in _build_for_search_points
+    return self.api_client.request(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 76, in request
+    return self.send(request, type_)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 99, in send
+    raise UnexpectedResponse.for_response(response)
+qdrant_client.http.exceptions.UnexpectedResponse: Unexpected Response: 400 (Bad Request)
+Raw response content:
+b'{"status":{"error":"Bad request: Index required but not found for \\"tenant_id\\" of one of the following types: [keyword]. Help: Create an index for this key or use a different filter."},"time":1.78 ...'
+2025-10-04T03:37:58.491 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:53404 - "POST /retrieve HTTP/1.1" 200 OK
+2025-10-04T03:37:58.491 | INFO | req= | route=/retrieve | tenant=tenant1 | msg=END status=200 ms=1136.0
+2025-10-04T03:37:58.507 | INFO | req= | route=/staff/recommend | tenant=unknown | msg=START
+INFO:     127.0.0.1:53404 - "GET /staff/recommend?project_id=1 HTTP/1.1" 200 OK
+2025-10-04T03:37:58.527 | INFO | req= | route=/staff/recommend | tenant=tenant1 | msg=END status=200 ms=24.8
+2025-10-04T03:37:58.527 | INFO | req= | route=/onboarding/generate | tenant=unknown | msg=START
+2025-10-04T03:37:59.713 | ERROR | req= | route= | tenant= | msg=Tool 'rag_search' failed: rag_search_tool() got an unexpected keyword argument 'limit'
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\planner.py", line 447, in execute_plan
+    res = _TOOL_REGISTRY[tool](user_claims=user_claims, **args)
+TypeError: rag_search_tool() got an unexpected keyword argument 'limit'
+INFO:     127.0.0.1:53404 - "POST /onboarding/generate HTTP/1.1" 500 Internal Server Error
+2025-10-04T03:37:59.733 | INFO | req= | route=/onboarding/generate | tenant=tenant1 | msg=END status=500 ms=1202.7

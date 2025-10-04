@@ -1,0 +1,13 @@
+{
+  "message": "Remote retrieval unavailable; using local fallback results. Please retry later.",
+  "results": [
+    {
+      "chunk_id": "5ce499120c52cf5044301e9d7342c654e64c9323e4b7a8e0ecd8e6db0ddf5d9b",
+      "score": 1.6931471805599454,
+      "source": "PX",
+      "text": "PX Smoke Sample\n\n# PX Smoke Sample\r\n\r\nAutomated upload content."
+    }
+  ],
+  "rosetta": null,
+  "rosetta_narrative_md": null
+}

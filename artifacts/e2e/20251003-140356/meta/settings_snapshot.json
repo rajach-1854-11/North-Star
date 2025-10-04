@@ -1,0 +1,22 @@
+{
+  "generated_at": "2025-10-03T14:03:56Z",
+  "run_id": "20251003-140356",
+  "config": {
+    "env": "dev",
+    "tenant_id": "tenant1",
+    "llm_provider": "cerebras",
+    "queue_mode": "redis",
+    "draft_mode": false,
+    "hybrid_lambda": 0.6,
+    "openai_model": "gpt-5",
+    "cerebras_model": "llama-4-scout-17b-16e-instruct",
+    "qdrant_url_host": "cf456b38-fcf3-45e3-bb8b-b2031fe42ff7.us-east-1-1.aws.cloud.qdrant.io:6333",
+    "redis_host": "native-mutt-16389.upstash.io:6379",
+    "postgres": {
+      "host": "northstar-db.c9gkqkueux84.eu-north-1.rds.amazonaws.com",
+      "port": 5432,
+      "database": "postgres",
+      "user": "postgres"
+    }
+  }
+}

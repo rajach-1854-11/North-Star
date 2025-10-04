@@ -1,0 +1,1649 @@
+{
+  "status_code": 200,
+  "headers": {
+    "date": "Fri, 03 Oct 2025 14:04:12 GMT",
+    "server": "uvicorn",
+    "content-length": "20388",
+    "content-type": "application/json"
+  },
+  "body": {
+    "openapi": "3.1.0",
+    "info": {
+      "title": "North Star API",
+      "version": "1.2.0"
+    },
+    "paths": {
+      "/auth/token": {
+        "post": {
+          "tags": [
+            "auth"
+          ],
+          "summary": "Token",
+          "description": "Return a JWT sourced from the database user record.",
+          "operationId": "token_auth_token_post",
+          "parameters": [
+            {
+              "name": "username",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Username"
+              }
+            },
+            {
+              "name": "password",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Password"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TokenResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/admin/users": {
+        "get": {
+          "tags": [
+            "admin"
+          ],
+          "summary": "List Tenant Users",
+          "description": "Return all users for the caller's tenant.",
+          "operationId": "list_tenant_users_admin_users_get",
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UserListResp"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/admin/users/{user_id}/role": {
+        "patch": {
+          "tags": [
+            "admin"
+          ],
+          "summary": "Patch User Role",
+          "description": "Update the role for the selected user in the tenant.",
+          "operationId": "patch_user_role_admin_users__user_id__role_patch",
+          "parameters": [
+            {
+              "name": "user_id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "integer",
+                "title": "User Id"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRolePatchReq"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UserResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/projects": {
+        "get": {
+          "tags": [
+            "projects-read"
+          ],
+          "summary": "List Tenant Projects",
+          "description": "Return all projects for the caller's tenant.",
+          "operationId": "list_tenant_projects_projects_get",
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ProjectResp"
+                    },
+                    "title": "Response List Tenant Projects Projects Get"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "tags": [
+            "projects"
+          ],
+          "summary": "Create Project",
+          "description": "Create a new project for the tenant.",
+          "operationId": "create_project_projects_post",
+          "parameters": [
+            {
+              "name": "key",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Key"
+              }
+            },
+            {
+              "name": "name",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Name"
+              }
+            },
+            {
+              "name": "description",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Description"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProjectResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/projects/{key}": {
+        "get": {
+          "tags": [
+            "projects-read"
+          ],
+          "summary": "Get Project",
+          "description": "Return a single project referenced by key.",
+          "operationId": "get_project_projects__key__get",
+          "parameters": [
+            {
+              "name": "key",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Key"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ProjectResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/assignments": {
+        "post": {
+          "tags": [
+            "assignments"
+          ],
+          "summary": "Post Assignment",
+          "description": "Create a new assignment for a developer.",
+          "operationId": "post_assignment_assignments_post",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentCreateReq"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/AssignmentResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/assignments/{assignment_id}": {
+        "patch": {
+          "tags": [
+            "assignments"
+          ],
+          "summary": "Patch Assignment",
+          "description": "Update details of an existing assignment.",
+          "operationId": "patch_assignment_assignments__assignment_id__patch",
+          "parameters": [
+            {
+              "name": "assignment_id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "integer",
+                "title": "Assignment Id"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentUpdateReq"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/AssignmentResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/projects/{project_id}/assignments": {
+        "get": {
+          "tags": [
+            "assignments"
+          ],
+          "summary": "Get Project Assignments",
+          "description": "Return assignments for the specified project.",
+          "operationId": "get_project_assignments_projects__project_id__assignments_get",
+          "parameters": [
+            {
+              "name": "project_id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "integer",
+                "title": "Project Id"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/AssignmentListResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/upload": {
+        "post": {
+          "tags": [
+            "upload"
+          ],
+          "summary": "Upload",
+          "description": "Ingest an uploaded file for the specified project.",
+          "operationId": "upload_upload_post",
+          "requestBody": {
+            "content": {
+              "multipart/form-data": {
+                "schema": {
+                  "$ref": "#/components/schemas/Body_upload_upload_post"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UploadResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/retrieve": {
+        "post": {
+          "tags": [
+            "retrieve"
+          ],
+          "summary": "Retrieve",
+          "operationId": "retrieve_retrieve_post",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveReq"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/RetrieveResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/staff/recommend": {
+        "get": {
+          "tags": [
+            "staff"
+          ],
+          "summary": "Recommend",
+          "description": "Return ranked developer candidates for the project.",
+          "operationId": "recommend_staff_recommend_get",
+          "parameters": [
+            {
+              "name": "project_id",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "integer",
+                "title": "Project Id"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/StaffResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/onboarding/generate": {
+        "post": {
+          "tags": [
+            "onboarding"
+          ],
+          "summary": "Generate",
+          "description": "Generate an onboarding plan for the requested developer.",
+          "operationId": "generate_onboarding_generate_post",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingReq"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/OnboardingResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/events/github": {
+        "post": {
+          "tags": [
+            "events"
+          ],
+          "summary": "Github",
+          "description": "Receive a GitHub webhook and enqueue it for background processing.",
+          "operationId": "github_events_github_post",
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "title": "Response Github Events Github Post"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/skills/profile": {
+        "get": {
+          "tags": [
+            "skills"
+          ],
+          "summary": "Profile",
+          "description": "Return the skill profile for a developer.",
+          "operationId": "profile_skills_profile_get",
+          "parameters": [
+            {
+              "name": "developer_id",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "integer",
+                "title": "Developer Id"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SkillProfileResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/audit": {
+        "get": {
+          "tags": [
+            "audit"
+          ],
+          "summary": "Audit",
+          "description": "Return recent audit log entries filtered by actor when provided.",
+          "operationId": "audit_audit_get",
+          "parameters": [
+            {
+              "name": "actor",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Actor"
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "default": 50,
+                "title": "Limit"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/AuditResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/agent/query": {
+        "post": {
+          "tags": [
+            "agent"
+          ],
+          "summary": "Agent Query",
+          "description": "Generate and execute an agentic plan for the provided prompt.",
+          "operationId": "agent_query_agent_query_post",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentQueryReq"
+                }
+              }
+            },
+            "required": true
+          },
+          "responses": {
+            "200": {
+              "description": "Successful Response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/AgentQueryResp"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "AgentQueryReq": {
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "title": "Prompt"
+            },
+            "allowed_tools": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "title": "Allowed Tools"
+            },
+            "targets": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "title": "Targets"
+            },
+            "k": {
+              "type": "integer",
+              "title": "K",
+              "default": 12
+            },
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "qdrant",
+                "rrf"
+              ],
+              "title": "Strategy",
+              "default": "qdrant"
+            },
+            "autonomy": {
+              "type": "string",
+              "enum": [
+                "Ask",
+                "Auto",
+                "Manual",
+                "Tell"
+              ],
+              "title": "Autonomy",
+              "default": "Ask"
+            }
+          },
+          "type": "object",
+          "required": [
+            "prompt"
+          ],
+          "title": "AgentQueryReq",
+          "description": "Request payload for the agent planning endpoint."
+        },
+        "AgentQueryResp": {
+          "properties": {
+            "plan": {
+              "type": "object",
+              "title": "Plan"
+            },
+            "artifacts": {
+              "type": "object",
+              "title": "Artifacts"
+            },
+            "output": {
+              "type": "object",
+              "title": "Output"
+            },
+            "message": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Message"
+            }
+          },
+          "type": "object",
+          "required": [
+            "plan",
+            "artifacts",
+            "output"
+          ],
+          "title": "AgentQueryResp",
+          "description": "Response payload for the agent planning endpoint."
+        },
+        "Artifact": {
+          "properties": {
+            "key": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Key"
+            },
+            "url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Url"
+            },
+            "page_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page Id"
+            }
+          },
+          "type": "object",
+          "title": "Artifact",
+          "description": "Reference to generated planner artifacts."
+        },
+        "AssignmentCreateReq": {
+          "properties": {
+            "developer_id": {
+              "type": "integer",
+              "title": "Developer Id"
+            },
+            "project_id": {
+              "type": "integer",
+              "title": "Project Id"
+            },
+            "role": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Role"
+            },
+            "start_date": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Date"
+            }
+          },
+          "type": "object",
+          "required": [
+            "developer_id",
+            "project_id"
+          ],
+          "title": "AssignmentCreateReq",
+          "description": "Request body for assignment creation."
+        },
+        "AssignmentListResp": {
+          "properties": {
+            "assignments": {
+              "items": {
+                "$ref": "#/components/schemas/AssignmentResp"
+              },
+              "type": "array",
+              "title": "Assignments"
+            }
+          },
+          "type": "object",
+          "required": [
+            "assignments"
+          ],
+          "title": "AssignmentListResp",
+          "description": "Wrapper for assignment listings."
+        },
+        "AssignmentResp": {
+          "properties": {
+            "id": {
+              "type": "integer",
+              "title": "Id"
+            },
+            "developer_id": {
+              "type": "integer",
+              "title": "Developer Id"
+            },
+            "project_id": {
+              "type": "integer",
+              "title": "Project Id"
+            },
+            "role": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Role"
+            },
+            "status": {
+              "type": "string",
+              "title": "Status"
+            }
+          },
+          "type": "object",
+          "required": [
+            "id",
+            "developer_id",
+            "project_id",
+            "status"
+          ],
+          "title": "AssignmentResp",
+          "description": "Assignment projection returned from admin endpoints."
+        },
+        "AssignmentUpdateReq": {
+          "properties": {
+            "role": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Role"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            },
+            "end_date": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Date"
+            }
+          },
+          "type": "object",
+          "title": "AssignmentUpdateReq",
+          "description": "Request body for updating an existing assignment."
+        },
+        "AuditEntry": {
+          "properties": {
+            "ts": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Ts"
+            },
+            "actor": {
+              "type": "integer",
+              "title": "Actor"
+            },
+            "action": {
+              "type": "string",
+              "title": "Action"
+            },
+            "status": {
+              "type": "integer",
+              "title": "Status"
+            },
+            "request_id": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          },
+          "type": "object",
+          "required": [
+            "ts",
+            "actor",
+            "action",
+            "status",
+            "request_id"
+          ],
+          "title": "AuditEntry",
+          "description": "Single audit log entry."
+        },
+        "AuditResp": {
+          "properties": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/AuditEntry"
+              },
+              "type": "array",
+              "title": "Items"
+            }
+          },
+          "type": "object",
+          "required": [
+            "items"
+          ],
+          "title": "AuditResp",
+          "description": "Audit log response wrapper."
+        },
+        "Body_upload_upload_post": {
+          "properties": {
+            "project_key": {
+              "type": "string",
+              "title": "Project Key"
+            },
+            "file": {
+              "type": "string",
+              "format": "binary",
+              "title": "File"
+            }
+          },
+          "type": "object",
+          "required": [
+            "project_key",
+            "file"
+          ],
+          "title": "Body_upload_upload_post"
+        },
+        "HTTPValidationError": {
+          "properties": {
+            "detail": {
+              "items": {
+                "$ref": "#/components/schemas/ValidationError"
+              },
+              "type": "array",
+              "title": "Detail"
+            }
+          },
+          "type": "object",
+          "title": "HTTPValidationError"
+        },
+        "OnboardingPlan": {
+          "properties": {
+            "summary": {
+              "type": "string",
+              "title": "Summary"
+            },
+            "gaps": {
+              "items": {
+                "type": "object"
+              },
+              "type": "array",
+              "title": "Gaps"
+            },
+            "two_week_plan": {
+              "items": {
+                "type": "object"
+              },
+              "type": "array",
+              "title": "Two Week Plan"
+            },
+            "artifacts": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/Artifact"
+              },
+              "type": "object",
+              "title": "Artifacts"
+            },
+            "notice": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Notice"
+            }
+          },
+          "type": "object",
+          "required": [
+            "summary",
+            "gaps",
+            "two_week_plan",
+            "artifacts"
+          ],
+          "title": "OnboardingPlan",
+          "description": "Structured onboarding plan output."
+        },
+        "OnboardingReq": {
+          "properties": {
+            "developer_id": {
+              "type": "integer",
+              "title": "Developer Id"
+            },
+            "project_id": {
+              "type": "integer",
+              "title": "Project Id"
+            },
+            "autonomy": {
+              "type": "string",
+              "enum": [
+                "Ask",
+                "Auto",
+                "Manual",
+                "Tell"
+              ],
+              "title": "Autonomy",
+              "default": "Ask"
+            }
+          },
+          "type": "object",
+          "required": [
+            "developer_id",
+            "project_id"
+          ],
+          "title": "OnboardingReq",
+          "description": "Request body for onboarding plan generation."
+        },
+        "OnboardingResp": {
+          "properties": {
+            "plan": {
+              "$ref": "#/components/schemas/OnboardingPlan"
+            },
+            "audit_ref": {
+              "type": "string",
+              "title": "Audit Ref"
+            },
+            "message": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Message"
+            }
+          },
+          "type": "object",
+          "required": [
+            "plan",
+            "audit_ref"
+          ],
+          "title": "OnboardingResp",
+          "description": "Response wrapper for onboarding plan generation."
+        },
+        "ProjectResp": {
+          "properties": {
+            "id": {
+              "type": "integer",
+              "title": "Id"
+            },
+            "key": {
+              "type": "string",
+              "title": "Key"
+            },
+            "name": {
+              "type": "string",
+              "title": "Name"
+            },
+            "description": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Description"
+            }
+          },
+          "type": "object",
+          "required": [
+            "id",
+            "key",
+            "name"
+          ],
+          "title": "ProjectResp",
+          "description": "Project representation used for create and read operations."
+        },
+        "RetrieveHit": {
+          "properties": {
+            "text": {
+              "type": "string",
+              "title": "Text"
+            },
+            "score": {
+              "type": "number",
+              "title": "Score"
+            },
+            "source": {
+              "type": "string",
+              "title": "Source"
+            },
+            "chunk_id": {
+              "type": "string",
+              "title": "Chunk Id"
+            }
+          },
+          "type": "object",
+          "required": [
+            "text",
+            "score",
+            "source",
+            "chunk_id"
+          ],
+          "title": "RetrieveHit",
+          "description": "Individual retrieval hit containing text and metadata."
+        },
+        "RetrieveReq": {
+          "properties": {
+            "query": {
+              "type": "string",
+              "title": "Query"
+            },
+            "targets": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "title": "Targets"
+            },
+            "k": {
+              "type": "integer",
+              "title": "K",
+              "default": 12
+            },
+            "lambda_weight": {
+              "type": "number",
+              "title": "Lambda Weight",
+              "default": 0.6
+            },
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "qdrant",
+                "rrf"
+              ],
+              "title": "Strategy",
+              "default": "qdrant"
+            },
+            "include_rosetta": {
+              "type": "boolean",
+              "title": "Include Rosetta",
+              "default": false
+            },
+            "known_projects": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "title": "Known Projects"
+            }
+          },
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "title": "RetrieveReq",
+          "description": "Request payload for retrieval endpoints."
+        },
+        "RetrieveResp": {
+          "properties": {
+            "results": {
+              "items": {
+                "$ref": "#/components/schemas/RetrieveHit"
+              },
+              "type": "array",
+              "title": "Results"
+            },
+            "message": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Message"
+            },
+            "rosetta": {
+              "anyOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rosetta"
+            }
+          },
+          "type": "object",
+          "required": [
+            "results"
+          ],
+          "title": "RetrieveResp",
+          "description": "Response wrapper for retrieval results."
+        },
+        "SkillEntry": {
+          "properties": {
+            "path": {
+              "type": "string",
+              "title": "Path"
+            },
+            "score": {
+              "type": "number",
+              "title": "Score"
+            },
+            "last_seen": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Seen"
+            }
+          },
+          "type": "object",
+          "required": [
+            "path",
+            "score",
+            "last_seen"
+          ],
+          "title": "SkillEntry",
+          "description": "Single skill row for a developer."
+        },
+        "SkillProfileResp": {
+          "properties": {
+            "developer_id": {
+              "type": "integer",
+              "title": "Developer Id"
+            },
+            "skills": {
+              "items": {
+                "$ref": "#/components/schemas/SkillEntry"
+              },
+              "type": "array",
+              "title": "Skills"
+            }
+          },
+          "type": "object",
+          "required": [
+            "developer_id",
+            "skills"
+          ],
+          "title": "SkillProfileResp",
+          "description": "Developer skill profile response."
+        },
+        "StaffCandidate": {
+          "properties": {
+            "developer_id": {
+              "type": "integer",
+              "title": "Developer Id"
+            },
+            "fit": {
+              "type": "number",
+              "title": "Fit"
+            },
+            "factors": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object",
+              "title": "Factors"
+            },
+            "availability": {
+              "type": "object",
+              "title": "Availability"
+            },
+            "explanations": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "title": "Explanations"
+            }
+          },
+          "type": "object",
+          "required": [
+            "developer_id",
+            "fit",
+            "factors",
+            "availability",
+            "explanations"
+          ],
+          "title": "StaffCandidate",
+          "description": "Staffing candidate with fit breakdown information."
+        },
+        "StaffResp": {
+          "properties": {
+            "project_id": {
+              "type": "integer",
+              "title": "Project Id"
+            },
+            "candidates": {
+              "items": {
+                "$ref": "#/components/schemas/StaffCandidate"
+              },
+              "type": "array",
+              "title": "Candidates"
+            }
+          },
+          "type": "object",
+          "required": [
+            "project_id",
+            "candidates"
+          ],
+          "title": "StaffResp",
+          "description": "Response payload for staffing results."
+        },
+        "TokenResp": {
+          "properties": {
+            "access_token": {
+              "type": "string",
+              "title": "Access Token"
+            },
+            "token_type": {
+              "type": "string",
+              "enum": [
+                "bearer"
+              ],
+              "const": "bearer",
+              "title": "Token Type",
+              "default": "bearer"
+            },
+            "expires_in": {
+              "type": "integer",
+              "title": "Expires In",
+              "default": 3600
+            }
+          },
+          "type": "object",
+          "required": [
+            "access_token"
+          ],
+          "title": "TokenResp",
+          "description": "OAuth-style token response returned during authentication."
+        },
+        "UploadResp": {
+          "properties": {
+            "project_key": {
+              "type": "string",
+              "title": "Project Key"
+            },
+            "collection": {
+              "type": "string",
+              "title": "Collection"
+            },
+            "count": {
+              "type": "integer",
+              "title": "Count"
+            },
+            "chunks": {
+              "type": "integer",
+              "title": "Chunks"
+            },
+            "message": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Message"
+            }
+          },
+          "type": "object",
+          "required": [
+            "project_key",
+            "collection",
+            "count",
+            "chunks"
+          ],
+          "title": "UploadResp",
+          "description": "Response payload for document ingestion."
+        },
+        "UserListResp": {
+          "properties": {
+            "users": {
+              "items": {
+                "$ref": "#/components/schemas/UserResp"
+              },
+              "type": "array",
+              "title": "Users"
+            }
+          },
+          "type": "object",
+          "required": [
+            "users"
+          ],
+          "title": "UserListResp",
+          "description": "Collection wrapper for user listings."
+        },
+        "UserResp": {
+          "properties": {
+            "id": {
+              "type": "integer",
+              "title": "Id"
+            },
+            "username": {
+              "type": "string",
+              "title": "Username"
+            },
+            "role": {
+              "type": "string",
+              "title": "Role"
+            },
+            "tenant_id": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          "type": "object",
+          "required": [
+            "id",
+            "username",
+            "role",
+            "tenant_id"
+          ],
+          "title": "UserResp",
+          "description": "Lightweight projection of a platform user."
+        },
+        "UserRolePatchReq": {
+          "properties": {
+            "role": {
+              "type": "string",
+              "enum": [
+                "Admin",
+                "PO",
+                "BA",
+                "Dev"
+              ],
+              "title": "Role"
+            }
+          },
+          "type": "object",
+          "required": [
+            "role"
+          ],
+          "title": "UserRolePatchReq",
+          "description": "Request body for updating a user's role."
+        },
+        "ValidationError": {
+          "properties": {
+            "loc": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "type": "array",
+              "title": "Location"
+            },
+            "msg": {
+              "type": "string",
+              "title": "Message"
+            },
+            "type": {
+              "type": "string",
+              "title": "Error Type"
+            }
+          },
+          "type": "object",
+          "required": [
+            "loc",
+            "msg",
+            "type"
+          ],
+          "title": "ValidationError"
+        }
+      }
+    }
+  }
+}

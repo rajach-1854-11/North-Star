@@ -1,0 +1,17 @@
+2025-10-04 05:11:12,610 | INFO | rq.worker | Worker rq:worker:8f7244e916124dc5a2515d8053bea369 started with PID 27800, version 1.16.2
+2025-10-04 05:11:12,610 | INFO | rq.worker | Subscribing to channel rq:pubsub:8f7244e916124dc5a2515d8053bea369
+2025-10-04 05:11:12,810 | INFO | rq.worker | *** Listening on events...
+2025-10-04 05:11:12,861 | INFO | rq.worker | Cleaning registries for queue: events
+2025-10-04 05:11:49,723 | INFO | rq.worker | events: worker.handlers.github_handler.handle_github_event({'event': 'push', 'payload': {'ref': 'refs/heads/main', 'before': '11111111...) (f256057e-ab3c-4e0d-9add-72f4999c145d)
+2025-10-04 05:11:50,056 | ERROR | rq.worker | [Job f256057e-ab3c-4e0d-9add-72f4999c145d]: exception raised while executing (worker.handlers.github_handler.handle_github_event)
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\rq\worker.py", line 1428, in perform_job
+    with self.death_penalty_class(timeout, JobTimeoutException, job_id=job.id):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\rq\timeouts.py", line 36, in __enter__
+    self.setup_death_penalty()
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\rq\timeouts.py", line 69, in setup_death_penalty
+    signal.signal(signal.SIGALRM, self.handle_death_penalty)
+                  ^^^^^^^^^^^^^^
+AttributeError: module 'signal' has no attribute 'SIGALRM'. Did you mean: 'SIGABRT'?
+

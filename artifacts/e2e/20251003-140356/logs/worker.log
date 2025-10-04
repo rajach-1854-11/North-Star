@@ -1,0 +1,4 @@
+19:34:00 Worker rq:worker:9c7dca2e046a4c3aba99e8817dbb1774 started with PID 23348, version 1.16.2
+19:34:00 Subscribing to channel rq:pubsub:9c7dca2e046a4c3aba99e8817dbb1774
+19:34:00 *** Listening on events...
+19:34:00 Cleaning registries for queue: events

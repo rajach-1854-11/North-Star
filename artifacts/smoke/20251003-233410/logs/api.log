@@ -1,0 +1,62 @@
+INFO:     Started server process [30100]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
+2025-10-04T05:04:22.414 | INFO | req=be5c3dce-6192-4b69-bfbc-5462a49ffd52 | route=/openapi.json | tenant=unknown | msg=START
+2025-10-04T05:04:22.430 | INFO | req=be5c3dce-6192-4b69-bfbc-5462a49ffd52 | route=/openapi.json | tenant=unknown | msg=END status=200 ms=17.5
+INFO:     127.0.0.1:50967 - "GET /openapi.json HTTP/1.1" 200 OK
+2025-10-04T05:04:22.430 | INFO | req= | route= | tenant= | msg=access
+2025-10-04T05:04:22.664 | INFO | req=6c1ec629-bc5f-4601-8d41-401dfd3cc080 | route=/auth/token | tenant=unknown | msg=START
+2025-10-04T05:04:22.680 | INFO | req=6c1ec629-bc5f-4601-8d41-401dfd3cc080 | route=/auth/token | tenant=unknown | msg=END status=200 ms=17.5
+2025-10-04T05:04:22.680 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:50968 - "POST /auth/token?username=po_admin&password=x HTTP/1.1" 200 OK
+2025-10-04T05:04:22.680 | INFO | req=e829abed-60dc-4d59-8218-fe74f120b767 | route=/projects | tenant=unknown | msg=START
+2025-10-04T05:04:22.686 | INFO | req=e829abed-60dc-4d59-8218-fe74f120b767 | route=/projects | tenant=tenant1 | msg=END status=409 ms=9.4
+2025-10-04T05:04:22.686 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:50968 - "POST /projects?key=PX&name=Realtime%20Pricing&description=Smoke%20validation%20project HTTP/1.1" 409 Conflict
+2025-10-04T05:04:22.686 | INFO | req=eaaf3b36-7336-4e3f-b8c9-ee4711f58bfc | route=/projects/PX | tenant=unknown | msg=START
+2025-10-04T05:04:22.696 | INFO | req=eaaf3b36-7336-4e3f-b8c9-ee4711f58bfc | route=/projects/PX | tenant=tenant1 | msg=END status=200 ms=4.7
+2025-10-04T05:04:22.696 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:50968 - "GET /projects/PX HTTP/1.1" 200 OK
+2025-10-04T05:04:22.696 | INFO | req=2bc2ad00-0428-4ac4-a20c-9c4932c40d23 | route=/upload | tenant=unknown | msg=START
+2025-10-04T05:04:29.330 | INFO | req= | route= | tenant= | msg=Ingested chunks
+2025-10-04T05:04:29.330 | INFO | req= | route= | tenant=tenant1 | msg=Stored fallback knowledge chunks
+INFO:     127.0.0.1:50968 - "POST /upload HTTP/1.1" 200 OK
+2025-10-04T05:04:29.348 | INFO | req=2bc2ad00-0428-4ac4-a20c-9c4932c40d23 | route=/upload | tenant=tenant1 | msg=END status=200 ms=6645.6
+2025-10-04T05:04:29.348 | INFO | req= | route= | tenant= | msg=access
+2025-10-04T05:04:29.348 | INFO | req=819aec55-d935-4259-bdcc-930f32f8d4b5 | route=/retrieve | tenant=unknown | msg=START
+2025-10-04T05:04:29.348 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T05:04:34.863 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:50968 - "POST /retrieve HTTP/1.1" 200 OK
+2025-10-04T05:04:34.863 | INFO | req=819aec55-d935-4259-bdcc-930f32f8d4b5 | route=/retrieve | tenant=tenant1 | msg=END status=200 ms=5524.4
+2025-10-04T05:04:34.863 | INFO | req= | route= | tenant= | msg=access
+2025-10-04T05:04:34.863 | INFO | req=15b19a47-ff30-474a-ac4a-4ffae98530d9 | route=/staff/recommend | tenant=unknown | msg=START
+2025-10-04T05:04:34.879 | INFO | req=15b19a47-ff30-474a-ac4a-4ffae98530d9 | route=/staff/recommend | tenant=tenant1 | msg=END status=200 ms=9.0
+2025-10-04T05:04:34.879 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:50968 - "GET /staff/recommend?project_id=1 HTTP/1.1" 200 OK
+2025-10-04T05:04:34.879 | INFO | req=ce14de80-c62a-4576-9640-f7efeb6b5927 | route=/onboarding/generate | tenant=unknown | msg=START
+2025-10-04T05:04:36.300 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T05:04:38.871 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+2025-10-04T05:04:43.395 | INFO | req= | route= | tenant= | msg=publish_artifact:jira_epic
+INFO:     127.0.0.1:50968 - "POST /onboarding/generate HTTP/1.1" 200 OK
+2025-10-04T05:04:43.410 | INFO | req=ce14de80-c62a-4576-9640-f7efeb6b5927 | route=/onboarding/generate | tenant=tenant1 | msg=END status=200 ms=8523.6
+2025-10-04T05:04:43.410 | INFO | req= | route= | tenant= | msg=access
+2025-10-04T05:04:43.410 | INFO | req=534f7a6b-60f5-4516-8f7c-5cfca4044e24 | route=/agent/query | tenant=unknown | msg=START
+2025-10-04T05:04:46.428 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T05:04:50.029 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+2025-10-04T05:04:52.093 | INFO | req= | route= | tenant= | msg=publish_artifact:jira_epic
+INFO:     127.0.0.1:50968 - "POST /agent/query HTTP/1.1" 200 OK
+2025-10-04T05:04:53.910 | INFO | req=534f7a6b-60f5-4516-8f7c-5cfca4044e24 | route=/agent/query | tenant=tenant1 | msg=END status=200 ms=10508.7
+2025-10-04T05:04:53.910 | INFO | req= | route= | tenant= | msg=access
+2025-10-04T05:04:53.925 | INFO | req=e1289ab5-8393-417f-b83c-2d7c21a99d9c | route=/skills/profile | tenant=unknown | msg=START
+2025-10-04T05:04:53.926 | INFO | req=e1289ab5-8393-417f-b83c-2d7c21a99d9c | route=/skills/profile | tenant=tenant1 | msg=END status=200 ms=5.2
+2025-10-04T05:04:53.926 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:50968 - "GET /skills/profile?developer_id=1 HTTP/1.1" 200 OK
+2025-10-04T05:04:53.926 | INFO | req=333e0dba-b9da-4d65-adeb-44f2613086df | route=/audit | tenant=unknown | msg=START
+2025-10-04T05:04:53.926 | INFO | req=333e0dba-b9da-4d65-adeb-44f2613086df | route=/audit | tenant=tenant1 | msg=END status=200 ms=7.6
+2025-10-04T05:04:53.926 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:50968 - "GET /audit?limit=20 HTTP/1.1" 200 OK
+2025-10-04T05:04:53.942 | INFO | req=0a94e28c-8cd0-4af0-9cd7-00bacbe7ce5f | route=/events/github | tenant=unknown | msg=START
+INFO:     127.0.0.1:50968 - "POST /events/github HTTP/1.1" 200 OK
+2025-10-04T05:04:54.236 | INFO | req=0a94e28c-8cd0-4af0-9cd7-00bacbe7ce5f | route=/events/github | tenant=unknown | msg=END status=200 ms=299.1
+2025-10-04T05:04:54.236 | INFO | req= | route= | tenant= | msg=access

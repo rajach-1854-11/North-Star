@@ -1,0 +1,34 @@
+INFO:     Started server process [29556]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
+2025-10-04T04:22:40.125 | INFO | req= | route=/openapi.json | tenant=unknown | msg=START
+INFO:     127.0.0.1:61489 - "GET /openapi.json HTTP/1.1" 200 OK
+2025-10-04T04:22:40.150 | INFO | req= | route=/openapi.json | tenant=unknown | msg=END status=200 ms=37.4
+2025-10-04T04:22:40.649 | INFO | req= | route=/auth/token | tenant=unknown | msg=START
+INFO:     127.0.0.1:61490 - "POST /auth/token?username=po_admin&password=x HTTP/1.1" 200 OK
+2025-10-04T04:22:40.676 | INFO | req= | route=/auth/token | tenant=unknown | msg=END status=200 ms=23.6
+2025-10-04T04:22:40.676 | INFO | req= | route=/projects | tenant=unknown | msg=START
+INFO:     127.0.0.1:61490 - "POST /projects?key=PX&name=Realtime%20Pricing&description=Smoke%20validation%20project HTTP/1.1" 409 Conflict
+2025-10-04T04:22:40.692 | INFO | req= | route=/projects | tenant=tenant1 | msg=END status=409 ms=13.3
+2025-10-04T04:22:40.700 | INFO | req= | route=/projects/PX | tenant=unknown | msg=START
+INFO:     127.0.0.1:61490 - "GET /projects/PX HTTP/1.1" 200 OK
+2025-10-04T04:22:40.708 | INFO | req= | route=/projects/PX | tenant=tenant1 | msg=END status=200 ms=12.6
+2025-10-04T04:22:40.715 | INFO | req= | route=/upload | tenant=unknown | msg=START
+2025-10-04T04:22:49.842 | INFO | req= | route= | tenant= | msg=Ingested chunks
+2025-10-04T04:22:49.859 | INFO | req= | route= | tenant=tenant1 | msg=Stored fallback knowledge chunks
+INFO:     127.0.0.1:61490 - "POST /upload HTTP/1.1" 200 OK
+2025-10-04T04:22:49.873 | INFO | req= | route=/upload | tenant=tenant1 | msg=END status=200 ms=9155.0
+2025-10-04T04:22:49.878 | INFO | req= | route=/retrieve | tenant=unknown | msg=START
+2025-10-04T04:22:49.881 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T04:22:55.944 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:61490 - "POST /retrieve HTTP/1.1" 200 OK
+2025-10-04T04:22:55.965 | INFO | req= | route=/retrieve | tenant=tenant1 | msg=END status=200 ms=6090.8
+2025-10-04T04:22:55.965 | INFO | req= | route=/staff/recommend | tenant=unknown | msg=START
+INFO:     127.0.0.1:61490 - "GET /staff/recommend?project_id=1 HTTP/1.1" 200 OK
+2025-10-04T04:22:55.991 | INFO | req= | route=/staff/recommend | tenant=tenant1 | msg=END status=200 ms=23.8
+2025-10-04T04:22:56.002 | INFO | req= | route=/onboarding/generate | tenant=unknown | msg=START
+2025-10-04T04:22:57.002 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T04:23:00.006 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:61490 - "POST /onboarding/generate HTTP/1.1" 500 Internal Server Error
+2025-10-04T04:23:06.311 | INFO | req= | route=/onboarding/generate | tenant=tenant1 | msg=END status=500 ms=10310.2

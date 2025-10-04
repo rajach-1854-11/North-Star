@@ -1,0 +1,7 @@
+{
+  "chunks": 1,
+  "collection": "local_kb",
+  "count": 1,
+  "message": "Remote vector index unavailable; using local fallback store. Please retry later.",
+  "project_key": "PX"
+}

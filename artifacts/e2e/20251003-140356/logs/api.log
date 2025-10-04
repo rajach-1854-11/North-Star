@@ -1,0 +1,149 @@
+INFO:     Started server process [9384]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
+2025-10-03T19:34:12.676 | INFO | req= | route=/openapi.json | tenant=unknown | msg=START
+INFO:     127.0.0.1:56689 - "GET /openapi.json HTTP/1.1" 200 OK
+2025-10-03T19:34:12.709 | INFO | req= | route=/openapi.json | tenant=unknown | msg=END status=200 ms=40.8
+2025-10-03T19:34:12.726 | INFO | req= | route=/auth/token | tenant=unknown | msg=START
+INFO:     127.0.0.1:56689 - "POST /auth/token?username=po_admin&password=x HTTP/1.1" 200 OK
+2025-10-03T19:34:12.744 | INFO | req= | route=/auth/token | tenant=unknown | msg=END status=200 ms=16.2
+2025-10-03T19:34:12.744 | INFO | req= | route=/auth/token | tenant=unknown | msg=START
+INFO:     127.0.0.1:56689 - "POST /auth/token?username=ba_nancy&password=x HTTP/1.1" 200 OK
+2025-10-03T19:34:12.760 | INFO | req= | route=/auth/token | tenant=unknown | msg=END status=200 ms=16.4
+2025-10-03T19:34:12.773 | INFO | req= | route=/auth/token | tenant=unknown | msg=START
+INFO:     127.0.0.1:56689 - "POST /auth/token?username=dev_alex&password=x HTTP/1.1" 200 OK
+2025-10-03T19:34:12.789 | INFO | req= | route=/auth/token | tenant=unknown | msg=END status=200 ms=15.3
+2025-10-03T19:34:12.792 | INFO | req= | route=/projects | tenant=unknown | msg=START
+INFO:     127.0.0.1:56689 - "POST /projects?key=PX&name=Realtime+Pricing&description=E2E HTTP/1.1" 409 Conflict
+2025-10-03T19:34:12.805 | INFO | req= | route=/projects | tenant=tenant1 | msg=END status=409 ms=15.7
+2025-10-03T19:34:12.805 | INFO | req= | route=/upload | tenant=unknown | msg=START
+2025-10-03T19:34:23.792 | INFO | req= | route= | tenant= | msg=Ingested chunks
+2025-10-03T19:34:23.808 | INFO | req= | route= | tenant=tenant1 | msg=Stored fallback knowledge chunks
+INFO:     127.0.0.1:56689 - "POST /upload HTTP/1.1" 200 OK
+2025-10-03T19:34:23.812 | INFO | req= | route=/upload | tenant=tenant1 | msg=END status=200 ms=11003.2
+2025-10-03T19:34:23.812 | INFO | req= | route=/retrieve | tenant=unknown | msg=START
+2025-10-03T19:34:23.825 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-03T19:34:25.394 | ERROR | req= | route= | tenant= | msg=Hybrid retriever crashed; switching to fallback
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\retriever.py", line 114, in rag_search
+    raw = hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\hybrid_retriever.py", line 124, in search
+    for point in qdrant_hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\qdrant_client.py", line 156, in hybrid_search
+    dense_points = client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_client.py", line 353, in search
+    return self._client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_remote.py", line 518, in search
+    search_result = self.http.points_api.search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 1388, in search_points
+    return self._build_for_search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 636, in _build_for_search_points
+    return self.api_client.request(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 76, in request
+    return self.send(request, type_)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 99, in send
+    raise UnexpectedResponse.for_response(response)
+qdrant_client.http.exceptions.UnexpectedResponse: Unexpected Response: 400 (Bad Request)
+Raw response content:
+b'{"status":{"error":"Bad request: Index required but not found for \\"tenant_id\\" of one of the following types: [keyword]. Help: Create an index for this key or use a different filter."},"time":1.47 ...'
+2025-10-03T19:34:25.394 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:56689 - "POST /retrieve HTTP/1.1" 200 OK
+2025-10-03T19:34:25.412 | INFO | req= | route=/retrieve | tenant=tenant1 | msg=END status=200 ms=1593.9
+2025-10-03T19:34:25.412 | INFO | req= | route=/retrieve | tenant=unknown | msg=START
+2025-10-03T19:34:25.424 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-03T19:34:26.725 | ERROR | req= | route= | tenant= | msg=Hybrid retriever crashed; switching to fallback
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\retriever.py", line 114, in rag_search
+    raw = hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\hybrid_retriever.py", line 124, in search
+    for point in qdrant_hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\qdrant_client.py", line 156, in hybrid_search
+    dense_points = client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_client.py", line 353, in search
+    return self._client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_remote.py", line 518, in search
+    search_result = self.http.points_api.search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 1388, in search_points
+    return self._build_for_search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 636, in _build_for_search_points
+    return self.api_client.request(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 76, in request
+    return self.send(request, type_)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 99, in send
+    raise UnexpectedResponse.for_response(response)
+qdrant_client.http.exceptions.UnexpectedResponse: Unexpected Response: 400 (Bad Request)
+Raw response content:
+b'{"status":{"error":"Bad request: Index required but not found for \\"tenant_id\\" of one of the following types: [keyword]. Help: Create an index for this key or use a different filter."},"time":1.46 ...'
+2025-10-03T19:34:26.725 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:56689 - "POST /retrieve HTTP/1.1" 200 OK
+2025-10-03T19:34:26.741 | INFO | req= | route=/retrieve | tenant=tenant1 | msg=END status=200 ms=1325.9
+2025-10-03T19:34:26.748 | INFO | req= | route=/agent/query | tenant=unknown | msg=START
+INFO:     127.0.0.1:56689 - "POST /agent/query HTTP/1.1" 400 Bad Request
+2025-10-03T19:34:28.127 | INFO | req= | route=/agent/query | tenant=tenant1 | msg=END status=400 ms=1377.7
+2025-10-03T19:34:28.660 | INFO | req= | route=/agent/query | tenant=unknown | msg=START
+INFO:     127.0.0.1:56689 - "POST /agent/query HTTP/1.1" 400 Bad Request
+2025-10-03T19:34:29.860 | INFO | req= | route=/agent/query | tenant=tenant1 | msg=END status=400 ms=1203.6
+2025-10-03T19:34:30.939 | INFO | req= | route=/agent/query | tenant=unknown | msg=START
+2025-10-03T19:34:32.186 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-03T19:34:35.057 | ERROR | req= | route= | tenant= | msg=Hybrid retriever crashed; switching to fallback
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\retriever.py", line 114, in rag_search
+    raw = hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\hybrid_retriever.py", line 124, in search
+    for point in qdrant_hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\qdrant_client.py", line 156, in hybrid_search
+    dense_points = client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_client.py", line 353, in search
+    return self._client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_remote.py", line 518, in search
+    search_result = self.http.points_api.search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 1388, in search_points
+    return self._build_for_search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 636, in _build_for_search_points
+    return self.api_client.request(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 76, in request
+    return self.send(request, type_)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 99, in send
+    raise UnexpectedResponse.for_response(response)
+qdrant_client.http.exceptions.UnexpectedResponse: Unexpected Response: 400 (Bad Request)
+Raw response content:
+b'{"status":{"error":"Bad request: Index required but not found for \\"tenant_id\\" of one of the following types: [keyword]. Help: Create an index for this key or use a different filter."},"time":1.62 ...'
+2025-10-03T19:34:35.057 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:56689 - "POST /agent/query HTTP/1.1" 400 Bad Request
+2025-10-03T19:34:35.073 | INFO | req= | route=/agent/query | tenant=tenant1 | msg=END status=400 ms=4138.3
+2025-10-03T19:34:37.153 | INFO | req= | route=/agent/query | tenant=unknown | msg=START
+2025-10-03T19:34:38.405 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-03T19:34:39.875 | ERROR | req= | route= | tenant= | msg=Hybrid retriever crashed; switching to fallback
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\retriever.py", line 114, in rag_search
+    raw = hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\hybrid_retriever.py", line 124, in search
+    for point in qdrant_hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\qdrant_client.py", line 156, in hybrid_search
+    dense_points = client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_client.py", line 353, in search
+    return self._client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_remote.py", line 518, in search
+    search_result = self.http.points_api.search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 1388, in search_points
+    return self._build_for_search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 636, in _build_for_search_points
+    return self.api_client.request(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 76, in request
+    return self.send(request, type_)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 99, in send
+    raise UnexpectedResponse.for_response(response)
+qdrant_client.http.exceptions.UnexpectedResponse: Unexpected Response: 400 (Bad Request)
+Raw response content:
+b'{"status":{"error":"Bad request: Index required but not found for \\"tenant_id\\" of one of the following types: [keyword]. Help: Create an index for this key or use a different filter."},"time":1.50 ...'
+2025-10-03T19:34:39.875 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:56689 - "POST /agent/query HTTP/1.1" 400 Bad Request
+2025-10-03T19:34:39.890 | INFO | req= | route=/agent/query | tenant=tenant1 | msg=END status=400 ms=2739.8
+2025-10-03T19:34:44.048 | INFO | req= | route=/agent/query | tenant=unknown | msg=START
+INFO:     127.0.0.1:56689 - "POST /agent/query HTTP/1.1" 400 Bad Request
+2025-10-03T19:34:45.506 | INFO | req= | route=/agent/query | tenant=tenant1 | msg=END status=400 ms=1462.1
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [9384]

@@ -30,7 +30,17 @@ def allocate_peer_review_credit(events: Iterable[PeerReviewEvent]) -> dict[int, 
             continue
         if event.submitted_at < cutoff:
             continue
-        developer_total = min(credit_value, credit_value * cap_per_window)
-        accrued[event.reviewer_developer_id] += developer_total
+
+        developer_id = event.reviewer_developer_id
+        current_total = accrued[developer_id]
+        if current_total >= cap_per_window:
+            continue
+
+        remaining_allowance = cap_per_window - current_total
+        credit_to_apply = min(credit_value, remaining_allowance)
+        if credit_to_apply <= 0:
+            continue
+
+        accrued[developer_id] = current_total + credit_to_apply
 
     return dict(accrued)

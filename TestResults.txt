@@ -1,0 +1,111 @@
+North Star API regression – 2025-10-04 (16:25 UTC)
+=================================================
+
+Environment
+-----------
+- Seeded tenant data via `app.scripts.data_seeder` (dry-run + apply) using the project venv (Python 3.12.7)
+- API launched in a detached process: `Start-Process python -m uvicorn app.main:app --port 9000` with `.env.local` overrides (SQLite + direct queue)
+- All requests executed from PowerShell against `http://localhost:9000`; server torn down with `Stop-Process` afterward
+
+Summary of calls
+----------------
+1. POST /auth/token (admin_root) → 200 (JWT issued)
+2. POST /auth/token (ba_nancy) → 200 (JWT issued)
+3. POST /auth/token (po_admin) → 200 (JWT issued)
+4. POST /auth/token (dev_alex) → 200 (JWT issued)
+5. GET /admin/users → 200 (5 tenant users)
+6. PATCH /admin/users/4/role → 200 (dev_alex promoted to PO)
+7. PATCH /admin/users/4/role → 200 (role reverted to Dev post-run)
+8. GET /projects → 200 (PX, PB listed)
+9. GET /projects/PX → 200 (Realtime Pricing details)
+10. POST /projects?key=PX → 409 (duplicate create as expected)
+11. POST /projects?key=PX510 → 200 (new temp project id=3)
+12. POST /assignments (project_id=2, Dev token) → 409 (existing PB assignment)
+13. POST /assignments (BA token) → 403 (RBAC enforced)
+14. POST /assignments (project_id=3, Dev token) → 200 (assignment id=3 created)
+15. GET /projects/2/assignments → 200 (assignment id=2)
+16. GET /projects/3/assignments → 200 (assignment id=3)
+17. PATCH /assignments/2 → 200 (status/role confirmed)
+18. PATCH /assignments/3 → 200 (role updated to "Lead Engineer")
+19. POST /upload (PX.md) → 200 (`tenant1__PX` upserted 3 chunks)
+20. POST /retrieve (BA) → 200 (PX & PB excerpts)
+21. POST /retrieve (PO) → 200 (PX architecture snippets)
+22. GET /staff/recommend?project_id=1 → 200 (Alex ranked fit 0.814)
+23. POST /onboarding/generate → 200 (Jira epic PX-15 created, plan returned)
+24. GET /skills/profile?developer_id=1 → 200 (5 skills)
+25. POST /agent/query (BA, rag_search only) → 200 (multi-step plan)
+26. POST /agent/query (PO, publish tools) → 200 after retry with explicit PX context (first attempt 400 due to stale PB key)
+27. POST /events/github → 200 (`status="queued"`, signature validated)
+28. GET /audit?limit=20 → 200 (includes all access above)
+
+Notable observations
+--------------------
+- Created project `PX510` and assignment id 3 (Lead Engineer) as part of coverage and verified visibility.
+- Onboarding run generated Jira epic PX-15; PO agent query produced Jira epic PX-16 and Confluence page 983060 in space NS.
+- GitHub webhook HMAC computed with configured secret; endpoint acknowledged enqueue with unique idempotency key.
+- All server activity captured in audit log; uvicorn process stopped cleanly (PID 30940).
+
+
+North Star API regression – 2025-10-03 (09:44 UTC)
+=================================================
+
+Environment
+-----------
+- Smoke suite executed via `venv\Scripts\python.exe` (Python 3.12.7)
+- `run_api_tests.ps1` auto-started Uvicorn with `DATABASE_URL=sqlite+pysqlite:///northstar.db` and `QUEUE_MODE=direct` overrides from `.env.local`
+- External integrations offline (Qdrant/LLM/Atlassian) → planner responses returned heuristic fallbacks as expected (HTTP 200 with `message`)
+
+Summary of calls
+----------------
+1. POST /auth/token → 200 (admin token)
+2. PATCH /admin/users/4/role → 200 (dev_alex promoted to PO)
+3. POST /assignments (Dev) → 409 conflict acknowledged, BA attempt → 403 (RBAC validated)
+4. POST /retrieve (BA) → 200 (local fallback hits, no error message)
+5. POST /agent/query (BA draft) → 200 (heuristic planner fallback)
+6. POST /agent/query (BA publish) → 200 (heuristic fallback, no 502)
+7. POST /projects?key=PX (PO) → 409 expected for idempotent create
+8. POST /upload (PX.md) → 200 (3 chunks ingested, local KB seeded)
+9. POST /retrieve (PO) → 200 (PX chunks returned)
+10. GET /staff/recommend (PO) → 200 (fit=0.8151 after SQLite-compatible query fix)
+11. POST /onboarding/generate → 200 (heuristic fallback plan)
+12. GET /skills/profile → 200 (5 skills listed)
+13. POST /agent/query (PO publish) → 200 (heuristic fallback)
+14. GET /audit?limit=20 → 200 (recent requests logged)
+
+Artifacts
+---------
+- Full transcript captured in `api_test_output.txt`
+- Uvicorn background logs cleared prior to run to avoid stale errors
+
+
+North Star API regression – 2025-10-03
+=====================================
+
+Environment
+-----------
+- Backend running via `python -m uvicorn app.main:app --host 0.0.0.0 --port 9000`
+- Tests executed with PowerShell script `run_api_tests.ps1`
+- External services available: Qdrant Cloud (tenant1__PX) and Cerebras chat completions
+
+Summary of calls
+----------------
+1. POST /auth/token → 200 (token issued)
+2. POST /projects?key=PX → 409 (project already exists – expected per prior setup)
+3. POST /upload (PX.md) → 200 (`tenant1__PX` collection upserted 3 chunks in Qdrant)
+4. POST /retrieve → 200 (3 Qdrant hits returned, no fallback message)
+5. GET /staff/recommend → 200 (candidate surfaced)
+6. POST /onboarding/generate → 200 (Cerebras planner response, `message`/`notice` absent)
+7. GET /skills/profile → 200 (empty skill list for developer 1)
+8. POST /agent/query → 200 (Cerebras plan produced, no fallback indicators)
+9. GET /audit → 200 (recent audit entries list)
+
+Notable observations
+--------------------
+- Verified Qdrant ingestion by counting `tenant1__PX` (3 points) and reviewing retrieved vectors.
+- Retrieval, onboarding, and agent endpoints now operate without fallback notices; Cerebras responses return within configured latency budget.
+- Local knowledge store mirror still succeeds for resilience, but remote paths remain primary.
+
+Artifacts
+---------
+- Full console transcript saved in `api_test_output.txt`.
+ 

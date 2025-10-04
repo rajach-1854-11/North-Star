@@ -1,0 +1,30 @@
+{
+  "developer_id": 1,
+  "skills": [
+    {
+      "last_seen": "2025-10-03T02:10:20.878672",
+      "path": "engineering.backend.python",
+      "score": 0.88
+    },
+    {
+      "last_seen": "2025-10-03T02:10:20.878672",
+      "path": "engineering.backend.kafka",
+      "score": 0.82
+    },
+    {
+      "last_seen": "2025-10-03T02:12:06.774839",
+      "path": "kafka",
+      "score": 0.7
+    },
+    {
+      "last_seen": "2025-10-03T02:12:06.774839",
+      "path": "postgresql",
+      "score": 0.6
+    },
+    {
+      "last_seen": "2025-10-03T02:10:20.878672",
+      "path": "engineering.data.spark",
+      "score": 0.55
+    }
+  ]
+}

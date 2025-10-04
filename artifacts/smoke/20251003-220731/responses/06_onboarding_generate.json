@@ -1,0 +1,7 @@
+{
+  "detail": "Failed to generate onboarding plan: 400: {'code': 'TOOL_ARGS_INVALID', 'message': 'Confluence page requires space_key or space_id', 'details': {'missing': ['space_id', 'space_key']}}",
+  "error": {
+    "code": "http_error",
+    "message": "Failed to generate onboarding plan: 400: {'code': 'TOOL_ARGS_INVALID', 'message': 'Confluence page requires space_key or space_id', 'details': {'missing': ['space_id', 'space_key']}}"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "status_code": 200,
+  "headers": {
+    "date": "Fri, 03 Oct 2025 14:04:12 GMT",
+    "server": "uvicorn",
+    "content-length": "623",
+    "content-type": "application/json"
+  },
+  "body": {
+    "results": [
+      {
+        "text": "Current Focus\n\n## Current Focus\r\n- Hardening authentication and role-based access controls\r\n- Rolling out zero-downtime deploy pipeline for PX and PB parity",
+        "score": 4.693147180559945,
+        "source": "PX",
+        "chunk_id": "53ab4815eee64ae43059b76d7cd3a510de36bc259a2961f0bc6cda6a18613833"
+      },
+      {
+        "text": "Project PX: Realtime Pricing Overview\n\n# Project PX: Realtime Pricing Overview",
+        "score": 1.6931471805599454,
+        "source": "PX",
+        "chunk_id": "eff7427f25498ba6d8e899b18f508f47bd1792a421927e9e4738627f862d9db6"
+      }
+    ],
+    "message": "Remote retrieval unavailable; using local fallback results. Please retry later.",
+    "rosetta": null
+  }
+}

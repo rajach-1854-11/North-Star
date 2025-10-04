@@ -1,0 +1,15 @@
+{
+  "sub": "po_admin",
+  "user_id": 2,
+  "role": "PO",
+  "tenant_id": "tenant1",
+  "accessible_projects": [
+    "PB",
+    "PX",
+    "global"
+  ],
+  "iss": "northstar",
+  "aud": "northstar",
+  "iat": 1759500252,
+  "exp": 1759503852
+}

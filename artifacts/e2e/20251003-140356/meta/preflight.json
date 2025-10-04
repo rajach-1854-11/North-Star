@@ -1,0 +1,14 @@
+{
+  "postgres": {
+    "ok": true,
+    "detail": "Connectivity OK"
+  },
+  "qdrant": {
+    "ok": true,
+    "detail": "status=200"
+  },
+  "redis": {
+    "ok": true,
+    "detail": "PING acknowledged"
+  }
+}

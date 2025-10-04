@@ -1,0 +1,7 @@
+{
+  "code": "TOOL_ARGS_INVALID",
+  "details": {
+    "space_key": "PXSPACE"
+  },
+  "message": "Confluence space not found"
+}

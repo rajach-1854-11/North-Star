@@ -1,0 +1,4 @@
+01:50:57 Worker rq:worker:b66b95200d8f4a1896d9d50b5d4ed255 started with PID 2200, version 1.16.2
+01:50:57 Subscribing to channel rq:pubsub:b66b95200d8f4a1896d9d50b5d4ed255
+01:50:57 *** Listening on events...
+01:50:57 Cleaning registries for queue: events

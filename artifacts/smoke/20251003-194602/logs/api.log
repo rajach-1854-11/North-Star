@@ -1,0 +1,6 @@
+INFO:     Will watch for changes in these directories: ['C:\\Users\\rchan\\OneDrive\\Desktop\\Git-Rajach-1854-11\\North-Star\\Src\\backend']
+INFO:     Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
+INFO:     Started reloader process [14576] using WatchFiles
+INFO:     Started server process [37860]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
