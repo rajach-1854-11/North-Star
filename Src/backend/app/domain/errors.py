@@ -5,6 +5,8 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from app.instrumentation.trace import trace_exception
+
 
 class AppError(Exception):
     """Base class for domain errors with structured metadata."""
@@ -60,8 +62,14 @@ def add_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+        trace_exception("app_error", exc, code=exc.code, status=exc.status_code)
         return JSONResponse(status_code=exc.status_code, content={"error": {"code": exc.code, "message": exc.message}})
 
     @app.exception_handler(HTTPException)
     async def http_exc_handler(_: Request, exc: HTTPException) -> JSONResponse:
-        return JSONResponse(status_code=exc.status_code, content={"error": {"code": "http_error", "message": exc.detail}})
+        trace_exception("http_exception", exc, status=exc.status_code, detail=exc.detail)
+        payload = {
+            "detail": exc.detail,
+            "error": {"code": "http_error", "message": exc.detail},
+        }
+        return JSONResponse(status_code=exc.status_code, content=payload)

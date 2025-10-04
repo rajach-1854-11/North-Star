@@ -111,6 +111,9 @@ def get_current_user(request: Request) -> Dict[str, Any]:
 
     # Make claims available to middlewares / handlers that read request.state.user
     request.state.user = claims
+    request_id = getattr(request.state, "request_id", None)
+    if request_id and isinstance(claims, dict):
+        claims.setdefault("request_id", request_id)
     return claims
 
 def require_role(*allowed: str | Iterable[str]) -> Callable[[Dict[str, Any]], Dict[str, Any]]:

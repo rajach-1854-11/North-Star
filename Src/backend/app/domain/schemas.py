@@ -27,6 +27,8 @@ class RetrieveReq(BaseModel):
     k: int = 12
     lambda_weight: float = 0.6
     strategy: RetrievalStrategy = "qdrant"
+    include_rosetta: bool = False
+    known_projects: List[str] = Field(default_factory=list)
 
 
 class RetrieveHit(BaseModel):
@@ -43,6 +45,8 @@ class RetrieveResp(BaseModel):
 
     results: List[RetrieveHit]
     message: str | None = None
+    rosetta: Dict[str, Any] | None = None
+    rosetta_narrative_md: str | None = None
 
 
 class ProjectResp(BaseModel):
@@ -209,6 +213,7 @@ class AgentQueryReq(BaseModel):
     k: int = 12
     strategy: RetrievalStrategy = "qdrant"
     autonomy: AutonomyMode = "Ask"
+    tool_overrides: Dict[str, Any] | None = None
 
 
 class AgentQueryResp(BaseModel):

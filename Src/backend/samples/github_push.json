@@ -1,0 +1,34 @@
+{
+  "ref": "refs/heads/main",
+  "before": "1111111111111111111111111111111111111111",
+  "after": "2222222222222222222222222222222222222222",
+  "repository": {
+    "id": 987654321,
+    "name": "realtime-pricing",
+    "full_name": "northstar/realtime-pricing"
+  },
+  "pusher": {
+    "name": "ba-nancy",
+    "email": "ba.nancy@example.com"
+  },
+  "head_commit": {
+    "id": "2222222222222222222222222222222222222222",
+    "message": "Improve PX vs PB RBAC enforcement",
+    "timestamp": "2025-10-03T16:30:00Z",
+    "author": {
+      "name": "PO Admin",
+      "email": "po.admin@example.com"
+    },
+    "added": ["services/auth/rbac.py"],
+    "modified": ["docs/rbac.md"],
+    "removed": []
+  },
+  "commits": [
+    {
+      "id": "2222222222222222222222222222222222222222",
+      "message": "Improve PX vs PB RBAC enforcement",
+      "timestamp": "2025-10-03T16:30:00Z",
+      "url": "https://github.com/northstar/northstar-platform/commit/2222222222222222222222222222222222222222"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.domain.schemas import OnboardingPlan
 from app.ports.talent_graph import project_skill_gap
 from loguru import logger
+from app.config import settings
 
 
 def _format_gap_bullets(gaps: List[tuple[str, float]]) -> str:
@@ -48,6 +49,12 @@ def generate_onboarding(
         task_prompt=task,
         allowed_tools=["rag_search", "confluence_page", "jira_epic"],
     )
+    meta = plan.setdefault("_meta", {})
+    meta.setdefault("project_key", project_key)
+    meta.setdefault("developer_name", dev_name)
+    meta.setdefault("tenant_id", user_claims.get("tenant_id"))
+    if settings.atlassian_space:
+        meta.setdefault("space_key", settings.atlassian_space)
     exec_res = _planner.execute_plan(plan, user_claims=user_claims)
     if exec_res.get("output", {}).get("notes") == "fallback_heuristic_plan":
         logger.warning("Planner fallback engaged for onboarding; returning heuristic plan")

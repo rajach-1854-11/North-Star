@@ -76,6 +76,7 @@ def ensure_seed_data() -> None:
             ("admin_root", "Admin"),
             ("po_admin", "PO"),
             ("ba_anita", "BA"),
+            ("ba_nancy", "BA"),
             ("dev_alex", "Dev"),
         ):
             users[username] = _get_or_create_user(

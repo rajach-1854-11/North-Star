@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Request
 from app.config import settings
 from app.utils.hashing import hash_bytes
 from app.utils.idempotency import acquire_once, request_key
-from worker.queue import enqueue_github_event
+from worker.job_queue import enqueue_github_event
 
 router = APIRouter(prefix="/events", tags=["events"])
 

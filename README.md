@@ -22,5 +22,8 @@ Clone the repository.
 
 Create a .env file from the .env.example and add your API keys.
 
+- Set `EMBED_DIM` to match the dense embedding model (defaults to 1024 for BGE-M3). All Qdrant collections must use this dimension.
+- Qdrant collections follow the pattern `tenant__project`. Ensure keyword payload indexes exist for `tenant_id`, `project_id`, and `project_key` to keep hybrid filters fast. The backend auto-checks these during startup.
+
 Run docker-compose up -d --build.# North-Star
 An agentic AI platform for large tech enterprises to intelligently staff projects, accelerate onboarding, and build a real-time map of their engineering talent. Built for the FutureStack'25 Hackathon.

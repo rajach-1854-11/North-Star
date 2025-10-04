@@ -56,15 +56,27 @@ def idempotent_call(key_factory: Callable[[], str], ttl_seconds: int = 600) -> C
 def request_key(headers: dict[str, str], body_bytes: bytes | None = None, *, prefix: str = "req") -> str:
     """Generate a deterministic idempotency key from HTTP headers and body."""
 
-    idem = headers.get("X-Idempotency-Key") or headers.get("Idempotency-Key")
+    lowered = {key.lower(): value for key, value in headers.items()}
+
+    def _first_present(*candidates: str) -> str | None:
+        for candidate in candidates:
+            direct = headers.get(candidate)
+            if direct:
+                return direct
+            lower = lowered.get(candidate.lower())
+            if lower:
+                return lower
+        return None
+
+    idem = _first_present("X-Idempotency-Key", "Idempotency-Key")
     if idem:
         return f"{prefix}:{idem}"
 
-    request_id = headers.get("X-Request-Id")
+    request_id = _first_present("X-Request-Id")
     if request_id:
         return f"{prefix}:{request_id}"
 
-    delivery = headers.get("X-GitHub-Delivery")
+    delivery = _first_present("X-GitHub-Delivery")
     if delivery:
         return f"{prefix}:github:{delivery}"
 

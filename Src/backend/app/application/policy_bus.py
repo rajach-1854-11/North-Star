@@ -46,4 +46,10 @@ def enforce(tool: str, role: str) -> None:
 
     allowed = ALLOWED_TOOLS.get(role, set())
     if tool not in allowed:
-        raise HTTPException(status_code=403, detail=f"{role} cannot run {tool}")
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "RBAC_DENIED",
+                "message": f"{role} cannot run {tool}",
+            },
+        )

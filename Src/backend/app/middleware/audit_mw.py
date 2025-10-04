@@ -26,7 +26,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        req_id = request.headers.get("X-Request-Id", "")
+        req_id = request.headers.get("X-Request-Id", "") or getattr(request.state, "request_id", "")
         route = request.url.path
         user_claims = getattr(request.state, "user", {}) or {}
         tenant = user_claims.get("tenant_id", "unknown")

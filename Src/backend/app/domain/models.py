@@ -170,3 +170,59 @@ class ToolExecution(Base):
     project_id: Mapped[int | None] = mapped_column(ForeignKey("project.id"), nullable=True)
     status: Mapped[str] = mapped_column(String)
     request_id: Mapped[str] = mapped_column(String)
+
+
+class RouterStats(Base):
+    """Bandit statistics for the hybrid router."""
+
+    __tablename__ = "router_stats"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    arm: Mapped[str] = mapped_column(String, nullable=False)
+    pulls: Mapped[int] = mapped_column(Integer, default=0)
+    reward_sum: Mapped[float] = mapped_column(Float, default=0.0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, onupdate=_utc_now)
+
+    __table_args__ = (UniqueConstraint("tenant_id", "arm", name="uq_router_stats_tenant_arm"),)
+
+
+class TenantMapperWeights(Base):
+    """Stored weights for contrastive A→B mapper per tenant."""
+
+    __tablename__ = "tenant_mapper_weights"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    weights: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, onupdate=_utc_now)
+
+
+class ABMapEdge(Base):
+    """Contrastive mapping edges between projects for ramp planning."""
+
+    __tablename__ = "abmap_edges"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    from_project: Mapped[str] = mapped_column(String, nullable=False)
+    to_project: Mapped[str] = mapped_column(String, nullable=False)
+    topic: Mapped[str] = mapped_column(String, nullable=False)
+    weight: Mapped[float] = mapped_column(Float, default=0.0)
+    evidence_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, onupdate=_utc_now)
+
+    __table_args__ = (
+        Index("idx_abmap_tenant_projects", "tenant_id", "from_project", "to_project"),
+    )
+
+
+class EvalRun(Base):
+    """Historical evaluation runs capturing metric snapshots."""
+
+    __tablename__ = "eval_run"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset: Mapped[str] = mapped_column(String, nullable=False)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now)

@@ -17,6 +17,7 @@ from app.domain.errors import ExternalServiceError
 from app.adapters.sparse_hash import encode_sparse
 from app.utils.chunk import smart_chunks
 from app.utils.hashing import hash_text
+from app.config import settings
 
 
 def _collection_name(tenant_id: str, project_key: str) -> str:
@@ -46,8 +47,8 @@ def _to_points(
                 "text": chunk,
                 "chunk_id": chunk_id,
                 "chunk_hash": digest,
-                "tenant_id": tenant_id,
-                "project_key": project_key,
+                "tenant_id": str(tenant_id),
+                "project_key": str(project_key),
                 "source": "upload",
                 "position": index,
             }
@@ -87,8 +88,14 @@ def ingest_text(
     if not dense_vecs or not dense_vecs[0]:
         raise ExternalServiceError("Embedding returned empty vectors")
 
+    vector_dim = len(dense_vecs[0])
+    if vector_dim != settings.embed_dim:
+        raise ExternalServiceError(
+            f"Embedding dimension mismatch; expected {settings.embed_dim}, got {vector_dim}"
+        )
+
     collection = _collection_name(tenant_id, project_key)
-    ensure_qdrant_collection(collection, dense_dim=len(dense_vecs[0]))
+    ensure_qdrant_collection(collection, dense_dim=settings.embed_dim)
 
     ids, dense_vectors, sparse_vectors, payloads = _to_points(chunks, dense_vecs, tenant_id, project_key)
     upsert_points(collection, ids, dense_vectors, sparse_vectors, payloads)

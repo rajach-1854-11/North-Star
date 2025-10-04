@@ -8,6 +8,8 @@ from typing import Any
 
 from loguru import logger
 
+from app.config import settings
+
 
 def _inject_defaults(record: dict[str, Any]) -> None:
     """Guarantee required ``extra`` keys exist for the log formatter."""
@@ -27,7 +29,15 @@ def setup_logging() -> None:
         "{time:YYYY-MM-DDTHH:mm:ss.SSS} | {level} | "
         "req={extra[req]} | route={extra[route]} | tenant={extra[tenant]} | msg={message}"
     )
-    logger.add(sys.stdout, format=fmt, level="INFO", enqueue=True, backtrace=False, diagnose=False)
+    level = (settings.log_level or "INFO").upper()
+    logger.add(
+        sys.stdout,
+        format=fmt,
+        level=level,
+        enqueue=True,
+        backtrace=False,
+        diagnose=False,
+    )
 
 
 class RequestLogger:
