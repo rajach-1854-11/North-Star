@@ -80,6 +80,10 @@ def request_key(headers: dict[str, str], body_bytes: bytes | None = None, *, pre
     if delivery:
         return f"{prefix}:github:{delivery}"
 
+    jira_delivery = _first_present("X-Atlassian-Webhook-Identifier", "X-Atlassian-Request-Id")
+    if jira_delivery:
+        return f"{prefix}:jira:{jira_delivery}"
+
     subset = {
         key: value
         for key, value in headers.items()

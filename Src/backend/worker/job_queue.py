@@ -42,3 +42,11 @@ def enqueue_github_event(payload: dict[str, Any]) -> None:
     from worker.handlers.github_handler import handle_github_event
 
     queue.enqueue(handle_github_event, payload, job_timeout=300)
+
+
+def enqueue_jira_event(payload: dict[str, Any]) -> None:
+    """Enqueue handling of a Jira webhook payload."""
+
+    from worker.handlers.jira_handler import handle_jira_event
+
+    queue.enqueue(handle_jira_event, payload, job_timeout=300)

@@ -133,7 +133,12 @@ def test_publish_args_invalid(monkeypatch: pytest.MonkeyPatch, client: TestClien
     assert response.status_code == 400
     body = response.json()
     assert body["code"] == "TOOL_ARGS_INVALID"
-    assert set(body["details"]["missing"]) == {"project_key", "summary", "description"}
+    missing = set(body["details"]["missing"])
+    assert {"summary", "description"}.issubset(missing)
+    if settings.atlassian_project_key:
+        assert "project_key" not in missing
+    else:
+        assert "project_key" in missing
 
 
 def test_publish_rbac_denied_dev(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:

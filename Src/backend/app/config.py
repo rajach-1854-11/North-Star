@@ -120,6 +120,38 @@ class Settings(BaseSettings):
     github_webhook_secret: str | None = Field(default=None, alias="GITHUB_WEBHOOK_SECRET")
     github_app_token: str | None = Field(default=None, alias="GITHUB_APP_TOKEN")
 
+    auto_provision_dev_from_gh: bool = Field(
+        default=False, alias="AUTO_PROVISION_DEV_FROM_GH"
+    )
+    enable_review_signals: bool = Field(default=True, alias="ENABLE_REVIEW_SIGNALS")
+    skill_baseline_increment: float = Field(default=1.0, alias="SKILL_BASELINE_INCREMENT")
+    skill_confidence_default: float = Field(
+        default=0.7, alias="SKILL_CONFIDENCE_DEFAULT"
+    )
+    review_major_rework_penalty: float = Field(
+        default=0.5, alias="REVIEW_MAJOR_REWORK_PENALTY"
+    )
+    review_nit_penalty: float = Field(default=0.1, alias="REVIEW_NIT_PENALTY")
+    review_approval_bonus: float = Field(default=0.3, alias="REVIEW_APPROVAL_BONUS")
+    review_first_review_multiplier: float = Field(
+        default=1.0, alias="REVIEW_FIRST_REVIEW_MULTIPLIER"
+    )
+    review_cycle_penalty: float = Field(default=0.3, alias="REVIEW_CYCLE_PENALTY")
+    review_peer_credit: float = Field(default=0.2, alias="REVIEW_PEER_CREDIT")
+    review_peer_credit_cap_per_window: int = Field(
+        default=5, alias="REVIEW_PEER_CREDIT_CAP_PER_WINDOW"
+    )
+    review_peer_credit_window_days: int = Field(
+        default=7, alias="REVIEW_PEER_CREDIT_WINDOW_DAYS"
+    )
+    time_to_merge_threshold_hours: int = Field(
+        default=24, alias="TIME_TO_MERGE_THRESHOLD_HOURS"
+    )
+    time_to_merge_penalty: float = Field(
+        default=0.2, alias="TIME_TO_MERGE_PENALTY"
+    )
+    time_to_merge_bonus: float = Field(default=0.1, alias="TIME_TO_MERGE_BONUS")
+
     hybrid_lambda: float = Field(default=0.6, alias="HYBRID_LAMBDA")
     bge_model: str = Field(default="BAAI/bge-m3", alias="BGE_MODEL")
     embed_dim: int = Field(default=1024, alias="EMBED_DIM", gt=0)

@@ -16,6 +16,7 @@ from app.instrumentation.trace import tracepoint
 from app.logging_setup import setup_logging
 from app.middleware.audit_mw import AuditMiddleware
 from app.middleware.auth_mw import AuthMiddleware
+from app.utils.migrations.skill_attribution import ensure_skill_attribution_schema
 from app.utils.seed_data import ensure_seed_data
 
 
@@ -24,6 +25,7 @@ def create_app() -> FastAPI:
 
     setup_logging()
     Base.metadata.create_all(bind=deps.engine)
+    ensure_skill_attribution_schema(deps.engine)
     ensure_seed_data()
     if settings.qdrant_run_index_migration:
         try:
@@ -44,6 +46,7 @@ def create_app() -> FastAPI:
         audit_routes,
         auth_routes,
         github_routes,
+        jira_routes,
         onboarding_routes,
         project_read_routes,
         project_routes,
@@ -63,6 +66,7 @@ def create_app() -> FastAPI:
     app.include_router(staff_routes.router)
     app.include_router(onboarding_routes.router)
     app.include_router(github_routes.router)
+    app.include_router(jira_routes.router)
     app.include_router(skills_routes.router)
     app.include_router(audit_routes.router)
     app.include_router(agent_routes.router)

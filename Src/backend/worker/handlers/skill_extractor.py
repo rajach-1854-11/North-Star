@@ -1,21 +1,17 @@
-"""Extract skills from structured planner output and persist to Postgres."""
+"""Utilities for generating and persisting skill assertions."""
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Iterable, List
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.engine import Engine
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.adapters.cerebras_planner import chat_json
 from app.config import settings
+from app.domain import models as m
 
-DATABASE_URL = (
-    f"postgresql+psycopg2://{settings.postgres_user}:{settings.postgres_password}"
-    f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
-)
-
-engine: Engine = create_engine(DATABASE_URL)
+from worker.services.database import engine
 
 SCHEMA_HINT = """{
  "assertions":[{"path":[str,...], "confidence":float, "evidence":str}]
@@ -31,52 +27,92 @@ def _format_prompt(event: str, payload: Dict[str, Any]) -> str:
     )
 
 
-def _write_skill(assertion: Dict[str, Any]) -> None:
-    parts = assertion.get("path", [])
-    if not parts:
-        return
-    path = ">".join(parts)
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                """
-                INSERT INTO skill(name, parent_id, path_cache, depth)
-                VALUES(:name, NULL, :path, :depth)
-                ON CONFLICT (path_cache) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    depth = EXCLUDED.depth
-                """
-            ),
-            {"name": parts[-1], "path": path, "depth": len(parts)},
-        )
-        skill_id = conn.execute(text("SELECT id FROM skill WHERE path_cache=:path"), {"path": path}).scalar()
-        if skill_id is None:
-            return
-        conn.execute(
-            text(
-                """
-                INSERT INTO developer_skill(developer_id, skill_id, score, confidence, evidence_ref)
-                VALUES(:developer_id, :skill_id, :score, :confidence, :evidence)
-                ON CONFLICT (developer_id, skill_id) DO UPDATE SET
-                    score = greatest(developer_skill.score, EXCLUDED.score),
-                    confidence = greatest(developer_skill.confidence, EXCLUDED.confidence),
-                    last_seen_at = now()
-                """
-            ),
-            {
-                "developer_id": 1,
-                "skill_id": skill_id,
-                "score": assertion.get("confidence", 0.7),
-                "confidence": assertion.get("confidence", 0.7),
-                "evidence": "gh:event",
-            },
-        )
-
-
-def extract_skills_and_write(event: str, payload: Dict[str, Any]) -> None:
-    """Extract skills from a GitHub event payload and persist them."""
+def generate_skill_assertions(event: str, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Call the planner to derive skill assertions without mutating the database."""
 
     prompt = _format_prompt(event, payload)
     output = chat_json(prompt, SCHEMA_HINT)
-    for assertion in output.get("assertions", []):
-        _write_skill(assertion)
+    assertions: List[Dict[str, Any]] = []
+    for raw in output.get("assertions", []) or []:
+        parts: Iterable[str] = [str(p).strip() for p in raw.get("path", []) if str(p).strip()]
+        path = [p for p in parts if p]
+        if not path:
+            continue
+        assertions.append(
+            {
+                "path": path,
+                "confidence": float(raw.get("confidence", settings.skill_confidence_default)),
+                "evidence": raw.get("evidence") or "gh:event",
+            }
+        )
+    return assertions
+
+
+def ensure_skill(session: Session, path: Iterable[str]) -> int | None:
+    """Ensure a skill hierarchy path exists and return the leaf skill id."""
+
+    parts = [str(p).strip() for p in path if str(p).strip()]
+    if not parts:
+        return None
+    path_cache = ">".join(parts)
+    depth = len(parts) - 1
+    session.execute(
+        text(
+            """
+            INSERT INTO skill(name, parent_id, path_cache, depth)
+            VALUES(:name, NULL, :path, :depth)
+            ON CONFLICT (path_cache) DO UPDATE SET
+                name = EXCLUDED.name,
+                depth = EXCLUDED.depth
+            """
+        ),
+        {"name": parts[-1], "path": path_cache, "depth": depth},
+    )
+    skill_id = session.execute(
+        text("SELECT id FROM skill WHERE path_cache=:path"), {"path": path_cache}
+    ).scalar_one()
+    return int(skill_id)
+
+
+def apply_skill_delta(
+    session: Session,
+    *,
+    developer_id: int,
+    skill_id: int,
+    project_id: int | None,
+    delta: float,
+    confidence: float,
+    evidence_ref: str,
+) -> None:
+    """Apply a score delta to a developer skill, ensuring timestamps update."""
+
+    session.execute(
+        text(
+            """
+            INSERT INTO developer_skill(developer_id, skill_id, score, confidence, evidence_ref, project_id)
+            VALUES(:developer_id, :skill_id, :delta, :confidence, :evidence_ref, :project_id)
+            ON CONFLICT (developer_id, skill_id) DO UPDATE SET
+                score = developer_skill.score + EXCLUDED.score,
+                confidence = MAX(developer_skill.confidence, EXCLUDED.confidence),
+                evidence_ref = EXCLUDED.evidence_ref,
+                project_id = COALESCE(EXCLUDED.project_id, developer_skill.project_id),
+                last_seen_at = CURRENT_TIMESTAMP
+            """
+        ),
+        {
+            "developer_id": developer_id,
+            "skill_id": skill_id,
+            "delta": delta,
+            "confidence": confidence,
+            "evidence_ref": evidence_ref[:255],
+            "project_id": project_id,
+        },
+    )
+
+
+__all__ = [
+    "generate_skill_assertions",
+    "ensure_skill",
+    "apply_skill_delta",
+    "engine",
+]

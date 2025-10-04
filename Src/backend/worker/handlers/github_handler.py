@@ -5,17 +5,21 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from worker.handlers.skill_extractor import extract_skills_and_write
-
+from worker.services.github_processor import GitHubEventProcessor
 
 logger = logging.getLogger(__name__)
 
 
 def handle_github_event(payload: dict[str, Any]) -> None:
-    """Dispatch a GitHub webhook payload to the skill extractor."""
+    """Dispatch a GitHub webhook payload to the GitHub processor."""
 
-    event = payload.get("event", "unknown")
-    body = payload.get("payload", {})
-    repo = body.get("repository", {}).get("full_name", "unknown")
-    logger.info("github_handler processing webhook", extra={"event": event, "repo": repo})
-    extract_skills_and_write(event, body)
+    processor = GitHubEventProcessor(payload)
+    logger.info(
+        "github_handler.processing",
+        extra={
+            "event": processor.event,
+            "delivery": processor.delivery_key,
+            "repo": processor.body.get("repository", {}).get("full_name", "unknown"),
+        },
+    )
+    processor.process()
