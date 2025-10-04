@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List
 
 from sqlalchemy import text
@@ -86,6 +87,8 @@ def apply_skill_delta(
 ) -> None:
     """Apply a score delta to a developer skill, ensuring timestamps update."""
 
+    seen_at = datetime.now(timezone.utc)
+
     session.execute(
         text(
             """
@@ -105,14 +108,14 @@ def apply_skill_delta(
                 :confidence,
                 :evidence_ref,
                 :project_id,
-                CURRENT_TIMESTAMP
+                :last_seen_at
             )
             ON CONFLICT (developer_id, skill_id) DO UPDATE SET
                 score = developer_skill.score + EXCLUDED.score,
                 confidence = MAX(developer_skill.confidence, EXCLUDED.confidence),
                 evidence_ref = EXCLUDED.evidence_ref,
                 project_id = COALESCE(EXCLUDED.project_id, developer_skill.project_id),
-                last_seen_at = CURRENT_TIMESTAMP
+                last_seen_at = :last_seen_at
             """
         ),
         {
@@ -122,6 +125,7 @@ def apply_skill_delta(
             "confidence": confidence,
             "evidence_ref": evidence_ref[:255],
             "project_id": project_id,
+            "last_seen_at": seen_at,
         },
     )
 
