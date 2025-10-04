@@ -19,7 +19,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install deps
-        working-directory: North-Star
+        working-directory: .
         run: |
           python -m pip install -U pip
           pip install -r requirements.txt
@@ -27,7 +27,7 @@ jobs:
           pip install -e Src/backend
 
       - name: Run tests
-        working-directory: North-Star/Src/backend
+        working-directory: Src/backend
         env:
           ENV: test
           AUTH_BYPASS: "false"
@@ -39,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: junit
-          path: North-Star/Src/backend/pytest-junit.xml
+          path: Src/backend/pytest-junit.xml
