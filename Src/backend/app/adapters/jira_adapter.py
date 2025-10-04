@@ -25,14 +25,14 @@ def _tool_args_invalid(message: str, *, details: Dict[str, Any] | None = None) -
     detail = {"code": "TOOL_ARGS_INVALID", "message": message}
     if details:
         detail["details"] = details
-    raise HTTPException(status_code=400, detail=detail)
+    return HTTPException(status_code=400, detail=detail)
 
 
 def _upstream_validation_error(message: str, *, details: Dict[str, Any] | None = None) -> HTTPException:
     detail = {"code": "UPSTREAM_VALIDATION", "message": message}
     if details:
         detail["details"] = details
-    raise HTTPException(status_code=400, detail=detail)
+    return HTTPException(status_code=400, detail=detail)
 
 
 def _auth_headers() -> Dict[str, str]:
@@ -59,7 +59,10 @@ def resolve_project(project_key: str | None, project_id: str | None) -> Dict[str
     """Resolve project metadata ensuring both id and key when possible."""
 
     if not project_key and not project_id:
-        _tool_args_invalid("project_key or project_id required", details={"missing": ["project_key", "project_id"]})
+        raise _tool_args_invalid(
+            "project_key or project_id required",
+            details={"missing": ["project_key", "project_id"]},
+        )
 
     if not settings.atlassian_base_url:
         raise ExternalServiceError("Atlassian base URL is not configured")
@@ -76,7 +79,7 @@ def resolve_project(project_key: str | None, project_id: str | None) -> Dict[str
             status = exc.response.status_code
             body = exc.response.text[:500]
             if status in {400, 401, 403, 404}:
-                _tool_args_invalid(
+                raise _tool_args_invalid(
                     f"Jira project lookup failed ({status})",
                     details={"body": body, "project_key": project_key, "project_id": project_id},
                 )
@@ -159,7 +162,7 @@ def build_jira_fields(
     elif project_key:
         project_ref = {"key": project_key}
     else:
-        _tool_args_invalid("Unable to resolve Jira project reference")
+        raise _tool_args_invalid("Unable to resolve Jira project reference")
 
     fields: Dict[str, Any] = {
         "project": project_ref,
@@ -289,7 +292,7 @@ def create_issue(
                             retry_response.raise_for_status()
                         except httpx.HTTPStatusError as retry_exc:
                             retry_body = retry_exc.response.text[:800]
-                            _upstream_validation_error(
+                            raise _upstream_validation_error(
                                 "Jira epic creation failed after retry",
                                 details={
                                     "status": retry_exc.response.status_code,
@@ -307,12 +310,12 @@ def create_issue(
                             "url": f"{settings.atlassian_base_url.rstrip('/')}/browse/{key}",
                         }
 
-                _upstream_validation_error(
+                raise _upstream_validation_error(
                     f"Jira issue create failed ({status})",
                     details={"body": body, "payload": payload},
                 )
             if status in {401, 403, 404}:
-                _tool_args_invalid(
+                raise _tool_args_invalid(
                     f"Jira issue create failed ({status})",
                     details={"body": body, "payload": payload},
                 )
