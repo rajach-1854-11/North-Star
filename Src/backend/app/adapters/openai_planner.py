@@ -19,7 +19,7 @@ def chat_json(prompt: str, schema_hint: str) -> Dict[str, Any]:
         raise ExternalServiceError("OpenAI configuration is incomplete (missing API key)")
 
     url = f"{(settings.openai_base_url or 'https://api.openai.com/v1').rstrip('/')}/chat/completions"
-    model = settings.openai_model or "gpt-5"
+    model = settings.openai_model or "gpt-"
     payload = {
         "model": model,
         "messages": [

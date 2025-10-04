@@ -89,8 +89,24 @@ def apply_skill_delta(
     session.execute(
         text(
             """
-            INSERT INTO developer_skill(developer_id, skill_id, score, confidence, evidence_ref, project_id)
-            VALUES(:developer_id, :skill_id, :delta, :confidence, :evidence_ref, :project_id)
+            INSERT INTO developer_skill(
+                developer_id,
+                skill_id,
+                score,
+                confidence,
+                evidence_ref,
+                project_id,
+                last_seen_at
+            )
+            VALUES(
+                :developer_id,
+                :skill_id,
+                :delta,
+                :confidence,
+                :evidence_ref,
+                :project_id,
+                CURRENT_TIMESTAMP
+            )
             ON CONFLICT (developer_id, skill_id) DO UPDATE SET
                 score = developer_skill.score + EXCLUDED.score,
                 confidence = MAX(developer_skill.confidence, EXCLUDED.confidence),
