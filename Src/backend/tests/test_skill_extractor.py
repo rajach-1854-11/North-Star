@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.domain import models as m
 from worker.handlers import skill_extractor
+from app.utils.passwords import hash_password
 
 
 def _unique(label: str) -> str:
@@ -22,7 +23,7 @@ def test_apply_skill_delta_sets_last_seen(db_session: Session) -> None:
 
     user = m.User(
         username=_unique("dev"),
-        password_hash="x",
+        password_hash=hash_password("x"),
         role="Dev",
         tenant_id=tenant.id,
     )

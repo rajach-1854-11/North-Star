@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.deps import SessionLocal
 from app.domain import models as m
+from app.utils.passwords import hash_password, verify_password
 
 
 class SeederError(RuntimeError):
@@ -296,7 +297,12 @@ def _seed_users(seeder: Seeder, rows: Sequence[UserRow], file_name: str) -> File
             raise SeederError(f"{file_name}: role '{role}' is not permitted (allowed: {_ALLOWED_ROLES})")
         existing = seeder.session.query(m.User).filter(m.User.username == row.username).one_or_none()
         if existing is None:
-            user = m.User(username=row.username, role=role, password_hash=row.password_hash, tenant_id=tenant_id)
+            user = m.User(
+                username=row.username,
+                role=role,
+                password_hash=hash_password(row.password_hash),
+                tenant_id=tenant_id,
+            )
             seeder.add(user)
             seeder.flush()
             seeder.remember_user(user)
@@ -308,9 +314,9 @@ def _seed_users(seeder: Seeder, rows: Sequence[UserRow], file_name: str) -> File
                     if not seeder.context.dry_run:
                         existing.role = role
                     changed = True
-                if existing.password_hash != row.password_hash:
+                if not verify_password(row.password_hash, existing.password_hash):
                     if not seeder.context.dry_run:
-                        existing.password_hash = row.password_hash
+                        existing.password_hash = hash_password(row.password_hash)
                     changed = True
                 if existing.tenant_id != tenant_id:
                     if not seeder.context.dry_run:

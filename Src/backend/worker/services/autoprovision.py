@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.domain import models as m
+from app.utils.passwords import hash_password
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +35,10 @@ def provision_developer(
         .one_or_none()
     )
     if existing_user is None:
+        random_password = secrets.token_urlsafe(16)
         existing_user = m.User(
             username=username,
-            password_hash=secrets.token_hex(16),
+            password_hash=hash_password(random_password),
             role="Dev",
             tenant_id=tenant_id,
         )

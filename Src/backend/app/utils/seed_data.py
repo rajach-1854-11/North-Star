@@ -10,12 +10,18 @@ from sqlalchemy.orm import Session
 from app import deps
 from app.config import settings
 from app.domain import models as m
+from app.utils.passwords import hash_password, verify_password
 
 
 def _get_or_create_user(db: Session, *, tenant_id: str, username: str, role: str, password: str) -> m.User:
     user = db.query(m.User).filter(m.User.username == username).one_or_none()
     if user is None:
-        user = m.User(username=username, password_hash=password, role=role, tenant_id=tenant_id)
+        user = m.User(
+            username=username,
+            password_hash=hash_password(password),
+            role=role,
+            tenant_id=tenant_id,
+        )
         db.add(user)
         db.flush()
     else:
@@ -23,6 +29,8 @@ def _get_or_create_user(db: Session, *, tenant_id: str, username: str, role: str
             user.role = role
         if user.tenant_id != tenant_id:
             user.tenant_id = tenant_id
+        if not verify_password(password, user.password_hash):
+            user.password_hash = hash_password(password)
     return user
 
 

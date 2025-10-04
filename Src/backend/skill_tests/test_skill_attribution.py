@@ -21,6 +21,7 @@ os.environ.setdefault("AUTO_PROVISION_DEV_FROM_GH", "false")
 
 from app.config import settings
 from app.domain import models as m
+from app.utils.passwords import hash_password
 from worker.handlers import skill_extractor
 import worker.services.database as db
 from worker.services.github_processor import GitHubEventProcessor
@@ -101,7 +102,12 @@ def _seed_core_entities(SessionTest, *, email: str | None = None, login: str | N
                 tenant_id=tenant.id,
             )
             session.add(project)
-        user = m.User(username="devuser", password_hash="hash", role="Dev", tenant_id=tenant.id)
+        user = m.User(
+            username="devuser",
+            password_hash=hash_password("dev-pass"),
+            role="Dev",
+            tenant_id=tenant.id,
+        )
         session.add(user)
         session.flush()
         developer = m.Developer(user_id=user.id, display_name="Dev User", tenant_id=tenant.id)
@@ -143,7 +149,12 @@ def _seed_core_entities(SessionTest, *, email: str | None = None, login: str | N
 def _create_reviewer(SessionTest, tenant_id: str, *, login: str, email: str | None = None):
     session = SessionTest()
     try:
-        user = m.User(username="reviewer", password_hash="hash", role="Dev", tenant_id=tenant_id)
+        user = m.User(
+            username="reviewer",
+            password_hash=hash_password("reviewer-pass"),
+            role="Dev",
+            tenant_id=tenant_id,
+        )
         session.add(user)
         session.flush()
         developer = m.Developer(user_id=user.id, display_name="Reviewer", tenant_id=tenant_id)
