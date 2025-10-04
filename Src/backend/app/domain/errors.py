@@ -1,5 +1,5 @@
 """Domain-specific exception hierarchy and FastAPI handlers."""
-#test
+
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException, Request
