@@ -11,7 +11,9 @@ from pydantic import ValidationError
 from app.adapters import confluence_adapter, jira_adapter
 from app.application.policy_bus import enforce
 from app.config import settings
+import app.deps as deps
 from app.domain.errors import ExternalServiceError
+from app.domain import models as m
 from app.ports.planner import register_tool
 from app.schemas.publish import PublishConfluenceRequest, PublishJiraRequest
 from worker.handlers.evidence_builder import to_confluence_html
@@ -97,6 +99,28 @@ def jira_epic_tool(
         raise _validation_error_to_http(exc)
 
     normalised_labels = labels or []
+
+    resolved_key = request.project_key
+    resolved_id = request.project_id
+    if not resolved_key and resolved_id:
+        try:
+            db_project_id = int(resolved_id)
+        except (TypeError, ValueError):
+            db_project_id = None
+        else:
+            with deps.SessionLocal() as session:
+                project_row = session.get(m.Project, db_project_id)
+                if project_row:
+                    resolved_key = project_row.key
+                    resolved_id = None
+
+    if resolved_key:
+        resolved_key = str(resolved_key).strip() or None
+    if resolved_id:
+        resolved_id = str(resolved_id).strip() or None
+
+    if resolved_key != request.project_key or resolved_id != request.project_id:
+        request = request.model_copy(update={"project_key": resolved_key, "project_id": resolved_id})
 
     try:
         project_meta = jira_adapter.resolve_project(project_key=request.project_key, project_id=request.project_id)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 from threading import Lock
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import httpx
 from fastapi import HTTPException
@@ -16,11 +16,20 @@ from app.utils.http import sync_client
 
 
 _EPIC_NAME_FIELD_ID_CACHE: str | None = None
+_EPIC_NAME_FIELD_LOOKUP_FAILED = False
 _EPIC_NAME_FIELD_LOCK = Lock()
+_EPIC_CREATE_META_CACHE: Dict[Tuple[str | None, str | None, str], bool] = {}
 
 
 def _tool_args_invalid(message: str, *, details: Dict[str, Any] | None = None) -> HTTPException:
     detail = {"code": "TOOL_ARGS_INVALID", "message": message}
+    if details:
+        detail["details"] = details
+    raise HTTPException(status_code=400, detail=detail)
+
+
+def _upstream_validation_error(message: str, *, details: Dict[str, Any] | None = None) -> HTTPException:
+    detail = {"code": "UPSTREAM_VALIDATION", "message": message}
     if details:
         detail["details"] = details
     raise HTTPException(status_code=400, detail=detail)
@@ -82,15 +91,17 @@ def resolve_project(project_key: str | None, project_id: str | None) -> Dict[str
         }
 
 
-def get_epic_name_field_id() -> str:
-    """Return the Jira custom field id used for the Epic Name."""
+def get_epic_name_field_id() -> str | None:
+    """Return the Jira custom field id used for the Epic Name, if available."""
 
     if settings.atlassian_epic_name_field_id:
         return settings.atlassian_epic_name_field_id
 
-    global _EPIC_NAME_FIELD_ID_CACHE
+    global _EPIC_NAME_FIELD_ID_CACHE, _EPIC_NAME_FIELD_LOOKUP_FAILED
     if _EPIC_NAME_FIELD_ID_CACHE:
         return _EPIC_NAME_FIELD_ID_CACHE
+    if _EPIC_NAME_FIELD_LOOKUP_FAILED:
+        return None
 
     if not settings.atlassian_base_url:
         raise ExternalServiceError("Atlassian base URL is not configured")
@@ -98,6 +109,8 @@ def get_epic_name_field_id() -> str:
     with _EPIC_NAME_FIELD_LOCK:
         if _EPIC_NAME_FIELD_ID_CACHE:
             return _EPIC_NAME_FIELD_ID_CACHE
+        if _EPIC_NAME_FIELD_LOOKUP_FAILED:
+            return None
 
         url = f"{settings.atlassian_base_url.rstrip('/')}/rest/api/3/field"
         with sync_client(timeout=60) as client:
@@ -115,7 +128,8 @@ def get_epic_name_field_id() -> str:
                         _EPIC_NAME_FIELD_ID_CACHE = str(field_id)
                         return _EPIC_NAME_FIELD_ID_CACHE
 
-        raise ExternalServiceError("Jira: Epic Name field id not found")
+        _EPIC_NAME_FIELD_LOOKUP_FAILED = True
+        return None
 
 
 def _ensure_description_adf(description_adf: Dict[str, Any] | None, description_text: str | None) -> Dict[str, Any]:
@@ -134,7 +148,6 @@ def _ensure_description_adf(description_adf: Dict[str, Any] | None, description_
 def build_jira_fields(
     request: PublishJiraRequest,
     description_adf: Dict[str, Any],
-    epic_field_id: str | None,
     labels: List[str] | None,
     project_meta: Dict[str, Any],
 ) -> Dict[str, Any]:
@@ -158,15 +171,47 @@ def build_jira_fields(
     if labels:
         fields["labels"] = labels
 
-    if request.issue_type == "Epic":
-        field_id = epic_field_id or get_epic_name_field_id()
-        epic_name = request.epic_name or request.summary
-        fields[field_id] = epic_name
-
     if request.issue_type == "Sub-task":
         fields["parent"] = {"key": str(request.parent_issue_key)}
 
     return {"fields": fields}
+
+
+def _epic_name_allowed_on_create(project_key: str | None, project_id: str | None, field_id: str) -> bool:
+    cache_key = (project_key, project_id, field_id)
+    if cache_key in _EPIC_CREATE_META_CACHE:
+        return _EPIC_CREATE_META_CACHE[cache_key]
+
+    if not settings.atlassian_base_url:
+        raise ExternalServiceError("Atlassian base URL is not configured")
+
+    params: List[Tuple[str, str]] = [("issuetypeNames", "Epic"), ("expand", "projects.issuetypes.fields")]
+    if project_key:
+        params.append(("projectKeys", project_key))
+    if project_id:
+        params.append(("projectId", str(project_id)))
+
+    url = f"{settings.atlassian_base_url.rstrip('/')}/rest/api/3/issue/createmeta"
+    with sync_client(timeout=60) as client:
+        response = client.get(url, headers=_auth_headers(), params=params)
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            body = exc.response.text[:800]
+            raise ExternalServiceError(f"Jira {exc.response.status_code}: {body}") from exc
+
+        data = response.json() or {}
+        for project in data.get("projects", []) or []:
+            issue_types = project.get("issuetypes") or []
+            for issue_type in issue_types:
+                if issue_type.get("name") == "Epic":
+                    fields = issue_type.get("fields") or {}
+                    allowed = field_id in fields
+                    _EPIC_CREATE_META_CACHE[cache_key] = allowed
+                    return allowed
+
+    _EPIC_CREATE_META_CACHE[cache_key] = False
+    return False
 
 
 def create_issue(
@@ -193,10 +238,21 @@ def create_issue(
     payload = build_jira_fields(
         request=request,
         description_adf=_ensure_description_adf(description_adf, request.description_text),
-        epic_field_id=epic_name_field_id,
         labels=labels,
         project_meta=project_meta,
     )
+
+    fields = payload["fields"]
+    epic_field_id_used: str | None = None
+    if request.issue_type == "Epic":
+        candidate_field_id = _to_str_or_none(epic_name_field_id) or get_epic_name_field_id()
+        epic_value = _to_str_or_none(request.epic_name) or _to_str_or_none(request.summary)
+        project_key = _to_str_or_none(project_meta.get("key"))
+        project_id = _to_str_or_none(project_meta.get("id"))
+        if candidate_field_id and epic_value and (project_key or project_id):
+            if _epic_name_allowed_on_create(project_key, project_id, candidate_field_id):
+                fields[candidate_field_id] = epic_value
+                epic_field_id_used = candidate_field_id
 
     url = f"{settings.atlassian_base_url.rstrip('/')}/rest/api/3/issue"
 
@@ -207,40 +263,55 @@ def create_issue(
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code
             body = exc.response.text[:800]
-            if (
-                status == 400
-                and request.issue_type == "Epic"
-                and epic_name_field_id
-                and payload["fields"].get(epic_name_field_id) is not None
-            ):
-                try:
-                    error_json = exc.response.json()
-                except ValueError:
-                    error_json = {}
-                field_errors = (error_json.get("errors") or {})
-                field_error = field_errors.get(epic_name_field_id)
-                if isinstance(field_error, str) and "cannot be set" in field_error.lower():
-                    trimmed_payload = {**payload, "fields": dict(payload["fields"])}
-                    trimmed_payload["fields"].pop(epic_name_field_id, None)
-                    retry_response = client.post(url, headers=_auth_headers(), json=trimmed_payload)
+            if status == 400:
+                if request.issue_type == "Epic" and epic_field_id_used:
+                    mentions_field = False
                     try:
-                        retry_response.raise_for_status()
-                    except httpx.HTTPStatusError as retry_exc:
-                        retry_body = retry_exc.response.text[:800]
-                        _tool_args_invalid(
-                            "Jira issue create failed (400)",
-                            details={"body": retry_body, "payload": trimmed_payload},
-                        )
+                        error_json = exc.response.json()
+                    except ValueError:
+                        error_json = {}
+                    field_errors = (error_json.get("errors") or {}) if isinstance(error_json, dict) else {}
+                    field_error = None
+                    if isinstance(field_errors, dict):
+                        field_error = field_errors.get(epic_field_id_used)
+                    if isinstance(field_error, str):
+                        lower_msg = field_error.lower()
+                        if "cannot be set" in lower_msg or "not on the appropriate screen" in lower_msg:
+                            mentions_field = True
+                    if not mentions_field and epic_field_id_used in (body or ""):
+                        mentions_field = True
 
-                    data = retry_response.json()
-                    key = data.get("key")
-                    return {
-                        "key": key,
-                        "project_id": project_meta.get("id"),
-                        "project_key": project_meta.get("key"),
-                        "url": f"{settings.atlassian_base_url.rstrip('/')}/browse/{key}",
-                    }
-            if status in {400, 401, 403, 404}:
+                    if mentions_field:
+                        trimmed_payload = {**payload, "fields": dict(payload["fields"])}
+                        trimmed_payload["fields"].pop(epic_field_id_used, None)
+                        retry_response = client.post(url, headers=_auth_headers(), json=trimmed_payload)
+                        try:
+                            retry_response.raise_for_status()
+                        except httpx.HTTPStatusError as retry_exc:
+                            retry_body = retry_exc.response.text[:800]
+                            _upstream_validation_error(
+                                "Jira epic creation failed after retry",
+                                details={
+                                    "status": retry_exc.response.status_code,
+                                    "body": retry_body,
+                                    "payload": trimmed_payload,
+                                },
+                            )
+
+                        data = retry_response.json()
+                        key = data.get("key")
+                        return {
+                            "key": key,
+                            "project_id": project_meta.get("id"),
+                            "project_key": project_meta.get("key"),
+                            "url": f"{settings.atlassian_base_url.rstrip('/')}/browse/{key}",
+                        }
+
+                _upstream_validation_error(
+                    f"Jira issue create failed ({status})",
+                    details={"body": body, "payload": payload},
+                )
+            if status in {401, 403, 404}:
                 _tool_args_invalid(
                     f"Jira issue create failed ({status})",
                     details={"body": body, "payload": payload},

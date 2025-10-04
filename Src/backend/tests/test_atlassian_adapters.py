@@ -65,6 +65,7 @@ def test_jira_task_ok(monkeypatch):
 
     dummy = _DummyClient(post_response=_post_response)
     monkeypatch.setattr(jira_adapter, "sync_client", lambda timeout=60: dummy)
+    monkeypatch.setattr(jira_adapter, "_epic_name_allowed_on_create", lambda *_, **__: True)
 
     request = PublishJiraRequest(
         project_key="PX",
@@ -94,6 +95,7 @@ def test_jira_epic_ok(monkeypatch):
 
     dummy = _DummyClient(post_response=_post_response)
     monkeypatch.setattr(jira_adapter, "sync_client", lambda timeout=60: dummy)
+    monkeypatch.setattr(jira_adapter, "_epic_name_allowed_on_create", lambda *_, **__: True)
 
     request = PublishJiraRequest(
         project_key="PX",
@@ -131,6 +133,7 @@ def test_jira_create_issue_raises_tool_args_for_400(monkeypatch):
 
     dummy = _DummyClient(post_response=_post_response)
     monkeypatch.setattr(jira_adapter, "sync_client", lambda timeout=60: dummy)
+    monkeypatch.setattr(jira_adapter, "_epic_name_allowed_on_create", lambda *_, **__: True)
 
     request = PublishJiraRequest(
         project_key="PX",
@@ -143,7 +146,7 @@ def test_jira_create_issue_raises_tool_args_for_400(monkeypatch):
         jira_adapter.create_issue(request=request, epic_name_field_id="customfield_10011")
 
     assert exc.value.status_code == 400
-    assert "TOOL_ARGS_INVALID" in exc.value.detail["code"]
+    assert exc.value.detail["code"] == "UPSTREAM_VALIDATION"
 
 
 def test_confluence_page_ok_v1(monkeypatch):
