@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Generator
 
+from datetime import datetime, timezone
 import os
+import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,12 +28,24 @@ import app.deps as deps
 from app.main import create_app
 
 
+def _adapt_datetime(value: datetime) -> str:
+    aware = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    return aware.astimezone(timezone.utc).isoformat()
+
+
+sqlite3.register_adapter(datetime, _adapt_datetime)
+
+
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
-        connect_args={"check_same_thread": False},
+        connect_args={
+            "check_same_thread": False,
+            "detect_types": sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+        },
         poolclass=StaticPool,
+        future=True,
     )
     TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
