@@ -66,7 +66,7 @@ export default function GuidePage() {
       {showNarrative && (
         <Modal title="NorthStar Guide — Narrative" onClose={()=>setShowNarrative(false)}>
           <pre className="whitespace-pre-wrap text-sm" style={{ fontFamily: "var(--font-jet)" }}>
-Proposed alignment across {project or "selected projects"}:
+Proposed alignment across {project || "selected projects"}:
 - Consolidate features under a shared Epic.
 - Link subtasks to preserve ownership per stream.
 - Flag blockers discovered in A vs B.

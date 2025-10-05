@@ -7,23 +7,23 @@ import { Button } from "@/components/ui/button";
 
 type Candidate = { id: number; fit: number; skills: string[] };
 
+const CANDIDATES: Candidate[] = [
+  { id: 23, fit: 0.88, skills: ["react","fastapi","qdrant"] },
+  { id: 42, fit: 0.79, skills: ["python","nextjs","qdrant"] },
+  { id: 17, fit: 0.74, skills: ["react","typescript"] },
+  { id: 58, fit: 0.70, skills: ["python","fastapi"] }
+];
+
 export default function IntelliStaff() {
   const [project, setProject] = useState("PX");
   const [skill, setSkill] = useState("");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<number[]>([]);
 
-  const candidates: Candidate[] = [
-    { id: 23, fit: 0.88, skills: ["react","fastapi","qdrant"] },
-    { id: 42, fit: 0.79, skills: ["python","nextjs","qdrant"] },
-    { id: 17, fit: 0.74, skills: ["react","typescript"] },
-    { id: 58, fit: 0.70, skills: ["python","fastapi"] }
-  ];
-
-  const filtered = useMemo(()=> candidates
+  const filtered = useMemo(()=> CANDIDATES
       .filter(c => !skill || c.skills.includes(skill))
       .filter(c => !query || `${c.id}`.includes(query.trim()))
-      .sort((a,b)=> b.fit-a.fit), [candidates, skill, query]);
+      .sort((a,b)=> b.fit-a.fit), [skill, query]);
 
   const allVisibleIds = filtered.map(c=>c.id);
   const allSelectedVisible = allVisibleIds.every(id => selected.includes(id)) && allVisibleIds.length>0;

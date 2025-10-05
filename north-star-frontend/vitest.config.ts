@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config.js";
+import { defineConfig } from "vitest/config";
 import path from "path";
 
 export default defineConfig({
