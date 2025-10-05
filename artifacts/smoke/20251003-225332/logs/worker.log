@@ -1,0 +1,4 @@
+04:23:36 Worker rq:worker:4a9e64ab86124a03928044885cca3091 started with PID 38632, version 1.16.2
+04:23:36 Subscribing to channel rq:pubsub:4a9e64ab86124a03928044885cca3091
+04:23:36 *** Listening on events...
+04:23:36 Cleaning registries for queue: events

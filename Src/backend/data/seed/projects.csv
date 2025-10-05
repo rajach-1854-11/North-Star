@@ -1,0 +1,3 @@
+id,tenant_id,key,name,description
+1,1,PX,Realtime Pricing,Low-latency price computation service with Qdrant-powered retrieval and Redis caching.
+2,1,PB,Billing Calc,Batch billing calculator with strong RBAC and Postgres-first design.

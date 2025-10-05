@@ -1,0 +1,43 @@
+{
+  "message": null,
+  "results": [
+    {
+      "chunk_id": "53ab4815-eee6-4ae4-3059-b76d7cd3a510",
+      "score": 1.1228791,
+      "source": "PX",
+      "text": "Current Focus\n\n## Current Focus\r\n- Hardening authentication and role-based access controls\r\n- Rolling out zero-downtime deploy pipeline for PX and PB parity"
+    },
+    {
+      "chunk_id": "eff7427f-2549-8ba6-d8e8-99b18f508f47",
+      "score": 0.588639975,
+      "source": "PX",
+      "text": "Project PX: Realtime Pricing Overview\n\n# Project PX: Realtime Pricing Overview"
+    },
+    {
+      "chunk_id": "5ce49912-0c52-cf50-4430-1e9d7342c654",
+      "score": 0.55218516,
+      "source": "PX",
+      "text": "PX Smoke Sample\n\n# PX Smoke Sample\r\n\r\nAutomated upload content."
+    },
+    {
+      "chunk_id": "7bfc2799-6b5d-4f65-abec-967c6b0ddfd3",
+      "score": 0.1719876,
+      "source": "PX",
+      "text": "Architecture\n\n## Architecture\r\n\r\n- Microservices using FastAPI\r\n- Event streaming via Kafka topics\r\n- PostgreSQL for transactional data\r\n- Redis cache for pricing lookups"
+    },
+    {
+      "chunk_id": "fd36cc62-bc7e-00b6-1237-91a8fabd1f45",
+      "score": 0.17105514,
+      "source": "PX",
+      "text": "Realtime Pricing Platform\n\n# Realtime Pricing Platform"
+    },
+    {
+      "chunk_id": "a671f368-2771-eff3-0631-d9bd445e3758",
+      "score": 0.165142625,
+      "source": "PX",
+      "text": "Key Components\n\n## Key Components\r\n\r\n1 Pricing API\r\n2 Data Ingestion Pipelines\r\n3 Billing Calculator"
+    }
+  ],
+  "rosetta": null,
+  "rosetta_narrative_md": null
+}

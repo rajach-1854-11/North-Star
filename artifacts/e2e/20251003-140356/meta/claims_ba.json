@@ -1,0 +1,15 @@
+{
+  "sub": "ba_nancy",
+  "user_id": 5,
+  "role": "BA",
+  "tenant_id": "tenant1",
+  "accessible_projects": [
+    "PB",
+    "PX",
+    "global"
+  ],
+  "iss": "northstar",
+  "aud": "northstar",
+  "iat": 1759500252,
+  "exp": 1759503852
+}

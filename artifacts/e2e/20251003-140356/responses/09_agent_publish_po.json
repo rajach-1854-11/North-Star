@@ -1,0 +1,18 @@
+{
+  "status_code": 400,
+  "headers": {
+    "date": "Fri, 03 Oct 2025 14:04:43 GMT",
+    "server": "uvicorn",
+    "content-length": "137",
+    "content-type": "application/json"
+  },
+  "body": {
+    "code": "TOOL_ARGS_INVALID",
+    "message": "Confluence page requires space_key, title, and body content.",
+    "details": {
+      "missing": [
+        "body_html"
+      ]
+    }
+  }
+}

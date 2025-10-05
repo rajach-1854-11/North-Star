@@ -1,0 +1,2 @@
+{"query": "Summarize PX pricing strategy", "targets": ["PX"], "gold": ["Realtime Pricing Platform", "Pricing API"], "tenant": "tenant1", "policy_case": "standard"}
+{"query": "Compare PX and PB onboarding", "targets": ["PX", "PB"], "gold": ["PX onboarding plan", "PB onboarding"], "tenant": "tenant1", "policy_case": "contrast"}

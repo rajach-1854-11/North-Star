@@ -1,0 +1,4 @@
+02:09:44 Worker rq:worker:3a60b4a4beeb44a0bd287eb58eaf6e85 started with PID 25180, version 1.16.2
+02:09:44 Subscribing to channel rq:pubsub:3a60b4a4beeb44a0bd287eb58eaf6e85
+02:09:44 *** Listening on events...
+02:09:44 Cleaning registries for queue: events

@@ -1,0 +1,16 @@
+{
+  "status_code": 200,
+  "headers": {
+    "date": "Fri, 03 Oct 2025 14:04:12 GMT",
+    "server": "uvicorn",
+    "content-length": "83",
+    "content-type": "application/json"
+  },
+  "body": {
+    "project_key": "PX",
+    "collection": "tenant1__PX",
+    "count": 3,
+    "chunks": 3,
+    "message": null
+  }
+}

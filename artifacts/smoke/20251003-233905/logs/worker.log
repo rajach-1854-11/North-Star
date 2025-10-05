@@ -1,0 +1,4 @@
+2025-10-04 05:09:08,743 | INFO | rq.worker | Worker rq:worker:b5c5a29e167d46958148b9cc1bd244d6 started with PID 28272, version 1.16.2
+2025-10-04 05:09:08,743 | INFO | rq.worker | Subscribing to channel rq:pubsub:b5c5a29e167d46958148b9cc1bd244d6
+2025-10-04 05:09:08,934 | INFO | rq.worker | *** Listening on events...
+2025-10-04 05:09:08,976 | INFO | rq.worker | Cleaning registries for queue: events

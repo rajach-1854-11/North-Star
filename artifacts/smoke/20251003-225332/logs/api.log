@@ -1,0 +1,38 @@
+INFO:     Started server process [28392]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
+2025-10-04T04:23:52.311 | INFO | req= | route=/openapi.json | tenant=unknown | msg=START
+INFO:     127.0.0.1:61543 - "GET /openapi.json HTTP/1.1" 200 OK
+2025-10-04T04:23:52.355 | INFO | req= | route=/openapi.json | tenant=unknown | msg=END status=200 ms=39.9
+2025-10-04T04:23:52.830 | INFO | req= | route=/auth/token | tenant=unknown | msg=START
+INFO:     127.0.0.1:61544 - "POST /auth/token?username=po_admin&password=x HTTP/1.1" 200 OK
+2025-10-04T04:23:52.850 | INFO | req= | route=/auth/token | tenant=unknown | msg=END status=200 ms=22.0
+2025-10-04T04:23:52.858 | INFO | req= | route=/projects | tenant=unknown | msg=START
+INFO:     127.0.0.1:61544 - "POST /projects?key=PX&name=Realtime%20Pricing&description=Smoke%20validation%20project HTTP/1.1" 409 Conflict
+2025-10-04T04:23:52.865 | INFO | req= | route=/projects | tenant=tenant1 | msg=END status=409 ms=11.2
+2025-10-04T04:23:52.872 | INFO | req= | route=/projects/PX | tenant=unknown | msg=START
+INFO:     127.0.0.1:61544 - "GET /projects/PX HTTP/1.1" 200 OK
+2025-10-04T04:23:52.872 | INFO | req= | route=/projects/PX | tenant=tenant1 | msg=END status=200 ms=10.7
+2025-10-04T04:23:52.887 | INFO | req= | route=/upload | tenant=unknown | msg=START
+2025-10-04T04:24:01.438 | INFO | req= | route= | tenant= | msg=Ingested chunks
+2025-10-04T04:24:01.455 | INFO | req= | route= | tenant=tenant1 | msg=Stored fallback knowledge chunks
+INFO:     127.0.0.1:61544 - "POST /upload HTTP/1.1" 200 OK
+2025-10-04T04:24:01.455 | INFO | req= | route=/upload | tenant=tenant1 | msg=END status=200 ms=8577.4
+2025-10-04T04:24:01.469 | INFO | req= | route=/retrieve | tenant=unknown | msg=START
+2025-10-04T04:24:01.472 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T04:24:06.610 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:61544 - "POST /retrieve HTTP/1.1" 200 OK
+2025-10-04T04:24:06.616 | INFO | req= | route=/retrieve | tenant=tenant1 | msg=END status=200 ms=5145.1
+2025-10-04T04:24:06.619 | INFO | req= | route=/staff/recommend | tenant=unknown | msg=START
+INFO:     127.0.0.1:61544 - "GET /staff/recommend?project_id=1 HTTP/1.1" 200 OK
+2025-10-04T04:24:06.638 | INFO | req= | route=/staff/recommend | tenant=tenant1 | msg=END status=200 ms=21.6
+2025-10-04T04:24:06.638 | INFO | req= | route=/onboarding/generate | tenant=unknown | msg=START
+2025-10-04T04:24:08.154 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T04:24:11.978 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+2025-10-04T04:24:18.261 | INFO | req= | route= | tenant= | msg=publish_artifact:jira_epic
+INFO:     127.0.0.1:61544 - "POST /onboarding/generate HTTP/1.1" 200 OK
+2025-10-04T04:24:18.270 | INFO | req= | route=/onboarding/generate | tenant=tenant1 | msg=END status=200 ms=11628.2
+2025-10-04T04:24:18.270 | INFO | req= | route=/agent/query | tenant=unknown | msg=START
+INFO:     127.0.0.1:61544 - "POST /agent/query HTTP/1.1" 400 Bad Request
+2025-10-04T04:24:19.997 | INFO | req= | route=/agent/query | tenant=tenant1 | msg=END status=400 ms=1719.6

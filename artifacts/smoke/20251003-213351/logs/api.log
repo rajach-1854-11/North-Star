@@ -1,0 +1,124 @@
+INFO:     Started server process [26328]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
+2025-10-04T03:04:25.031 | INFO | req= | route=/openapi.json | tenant=unknown | msg=START
+INFO:     127.0.0.1:52756 - "GET /openapi.json HTTP/1.1" 200 OK
+2025-10-04T03:04:25.146 | INFO | req= | route=/openapi.json | tenant=unknown | msg=END status=200 ms=113.4
+2025-10-04T03:04:26.813 | INFO | req= | route=/auth/token | tenant=unknown | msg=START
+INFO:     127.0.0.1:52758 - "POST /auth/token?username=po_admin&password=x HTTP/1.1" 200 OK
+2025-10-04T03:04:26.854 | INFO | req= | route=/auth/token | tenant=unknown | msg=END status=200 ms=44.2
+2025-10-04T03:04:26.872 | INFO | req= | route=/projects | tenant=unknown | msg=START
+INFO:     127.0.0.1:52758 - "POST /projects?key=PX&name=Realtime%20Pricing&description=Smoke%20validation%20project HTTP/1.1" 409 Conflict
+2025-10-04T03:04:26.899 | INFO | req= | route=/projects | tenant=tenant1 | msg=END status=409 ms=25.2
+2025-10-04T03:04:26.900 | INFO | req= | route=/projects/PX | tenant=unknown | msg=START
+INFO:     127.0.0.1:52758 - "GET /projects/PX HTTP/1.1" 200 OK
+2025-10-04T03:04:26.933 | INFO | req= | route=/projects/PX | tenant=tenant1 | msg=END status=200 ms=26.4
+2025-10-04T03:04:26.946 | INFO | req= | route=/upload | tenant=unknown | msg=START
+2025-10-04T03:04:38.023 | INFO | req= | route= | tenant= | msg=Ingested chunks
+2025-10-04T03:04:38.070 | INFO | req= | route= | tenant=tenant1 | msg=Stored fallback knowledge chunks
+2025-10-04T03:04:38.079 | INFO | req= | route=/upload | tenant=tenant1 | msg=END status=200 ms=11144.1
+INFO:     127.0.0.1:52758 - "POST /upload HTTP/1.1" 200 OK
+2025-10-04T03:04:38.095 | INFO | req= | route=/retrieve | tenant=unknown | msg=START
+2025-10-04T03:04:38.095 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T03:04:39.258 | ERROR | req= | route= | tenant= | msg=Hybrid retriever crashed; switching to fallback
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\retriever.py", line 114, in rag_search
+    raw = hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\hybrid_retriever.py", line 124, in search
+    for point in qdrant_hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\qdrant_client.py", line 156, in hybrid_search
+    dense_points = client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_client.py", line 353, in search
+    return self._client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_remote.py", line 518, in search
+    search_result = self.http.points_api.search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 1388, in search_points
+    return self._build_for_search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 636, in _build_for_search_points
+    return self.api_client.request(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 76, in request
+    return self.send(request, type_)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 99, in send
+    raise UnexpectedResponse.for_response(response)
+qdrant_client.http.exceptions.UnexpectedResponse: Unexpected Response: 400 (Bad Request)
+Raw response content:
+b'{"status":{"error":"Bad request: Index required but not found for \\"tenant_id\\" of one of the following types: [keyword]. Help: Create an index for this key or use a different filter."},"time":1.58 ...'
+2025-10-04T03:04:39.272 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:52758 - "POST /retrieve HTTP/1.1" 200 OK
+2025-10-04T03:04:39.288 | INFO | req= | route=/retrieve | tenant=tenant1 | msg=END status=200 ms=1197.7
+2025-10-04T03:04:39.304 | INFO | req= | route=/staff/recommend | tenant=unknown | msg=START
+INFO:     127.0.0.1:52758 - "GET /staff/recommend?project_id=1 HTTP/1.1" 200 OK
+2025-10-04T03:04:39.352 | INFO | req= | route=/staff/recommend | tenant=tenant1 | msg=END status=200 ms=51.7
+2025-10-04T03:04:39.352 | INFO | req= | route=/onboarding/generate | tenant=unknown | msg=START
+2025-10-04T03:04:41.776 | ERROR | req= | route= | tenant= | msg=Tool 'rag_search' failed: rag_search_tool() got an unexpected keyword argument 'limit'
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\planner.py", line 408, in execute_plan
+    res = _TOOL_REGISTRY[tool](user_claims=user_claims, **args)
+TypeError: rag_search_tool() got an unexpected keyword argument 'limit'
+2025-10-04T03:04:43.515 | ERROR | req= | route= | tenant= | msg=Tool 'confluence_page' failed: Confluence: space key 'ENG' not found
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\planner.py", line 408, in execute_plan
+    res = _TOOL_REGISTRY[tool](user_claims=user_claims, **args)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\agentic\tools.py", line 116, in confluence_page_tool
+    space = confluence_adapter.resolve_space(space_key)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\confluence_adapter.py", line 44, in resolve_space
+    raise ExternalServiceError(f"Confluence: space key '{space_key}' not found")
+app.domain.errors.ExternalServiceError: Confluence: space key 'ENG' not found
+INFO:     127.0.0.1:52758 - "POST /onboarding/generate HTTP/1.1" 200 OK
+2025-10-04T03:04:46.477 | INFO | req= | route=/onboarding/generate | tenant=tenant1 | msg=END status=200 ms=7112.1
+2025-10-04T03:04:46.477 | INFO | req= | route=/agent/query | tenant=unknown | msg=START
+2025-10-04T03:04:48.834 | ERROR | req= | route= | tenant= | msg=Tool 'confluence_page' failed: Confluence: space key 'PXSPACE' not found
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\planner.py", line 408, in execute_plan
+    res = _TOOL_REGISTRY[tool](user_claims=user_claims, **args)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\agentic\tools.py", line 116, in confluence_page_tool
+    space = confluence_adapter.resolve_space(space_key)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\confluence_adapter.py", line 44, in resolve_space
+    raise ExternalServiceError(f"Confluence: space key '{space_key}' not found")
+app.domain.errors.ExternalServiceError: Confluence: space key 'PXSPACE' not found
+2025-10-04T03:04:48.834 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T03:04:50.759 | ERROR | req= | route= | tenant= | msg=Hybrid retriever crashed; switching to fallback
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\retriever.py", line 114, in rag_search
+    raw = hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\hybrid_retriever.py", line 124, in search
+    for point in qdrant_hybrid_search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\qdrant_client.py", line 156, in hybrid_search
+    dense_points = client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_client.py", line 353, in search
+    return self._client.search(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\qdrant_remote.py", line 518, in search
+    search_result = self.http.points_api.search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 1388, in search_points
+    return self._build_for_search_points(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api\points_api.py", line 636, in _build_for_search_points
+    return self.api_client.request(
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 76, in request
+    return self.send(request, type_)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\qdrant_client\http\api_client.py", line 99, in send
+    raise UnexpectedResponse.for_response(response)
+qdrant_client.http.exceptions.UnexpectedResponse: Unexpected Response: 400 (Bad Request)
+Raw response content:
+b'{"status":{"error":"Bad request: Index required but not found for \\"tenant_id\\" of one of the following types: [keyword]. Help: Create an index for this key or use a different filter."},"time":1.64 ...'
+2025-10-04T03:04:50.759 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+2025-10-04T03:04:51.657 | ERROR | req= | route= | tenant= | msg=Tool 'confluence_page' failed: Confluence: space key 'PXSPACE' not found
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\ports\planner.py", line 408, in execute_plan
+    res = _TOOL_REGISTRY[tool](user_claims=user_claims, **args)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\agentic\tools.py", line 116, in confluence_page_tool
+    space = confluence_adapter.resolve_space(space_key)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\app\adapters\confluence_adapter.py", line 44, in resolve_space
+    raise ExternalServiceError(f"Confluence: space key '{space_key}' not found")
+app.domain.errors.ExternalServiceError: Confluence: space key 'PXSPACE' not found
+INFO:     127.0.0.1:52758 - "POST /agent/query HTTP/1.1" 200 OK
+2025-10-04T03:04:51.673 | INFO | req= | route=/agent/query | tenant=tenant1 | msg=END status=200 ms=5200.1
+2025-10-04T03:04:51.689 | INFO | req= | route=/skills/profile | tenant=unknown | msg=START
+INFO:     127.0.0.1:52758 - "GET /skills/profile?developer_id=1 HTTP/1.1" 200 OK
+2025-10-04T03:04:51.705 | INFO | req= | route=/skills/profile | tenant=tenant1 | msg=END status=200 ms=22.5
+2025-10-04T03:04:51.721 | INFO | req= | route=/audit | tenant=unknown | msg=START
+INFO:     127.0.0.1:52758 - "GET /audit?limit=20 HTTP/1.1" 200 OK
+2025-10-04T03:04:51.753 | INFO | req= | route=/audit | tenant=tenant1 | msg=END status=200 ms=30.2
+2025-10-04T03:04:51.753 | INFO | req= | route=/events/github | tenant=unknown | msg=START
+INFO:     127.0.0.1:52758 - "POST /events/github HTTP/1.1" 200 OK
+2025-10-04T03:04:52.363 | INFO | req= | route=/events/github | tenant=unknown | msg=END status=200 ms=606.5

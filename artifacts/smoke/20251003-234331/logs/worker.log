@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\North-Star\Src\backend\worker\main.py", line 11, in <module>
+    from rq.timeouts import DummyDeathPenalty
+ImportError: cannot import name 'DummyDeathPenalty' from 'rq.timeouts' (C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\rq\timeouts.py). Did you mean: 'TimerDeathPenalty'?

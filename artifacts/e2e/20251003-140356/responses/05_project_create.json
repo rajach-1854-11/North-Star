@@ -1,0 +1,16 @@
+{
+  "status_code": 409,
+  "headers": {
+    "date": "Fri, 03 Oct 2025 14:04:12 GMT",
+    "server": "uvicorn",
+    "content-length": "108",
+    "content-type": "application/json"
+  },
+  "body": {
+    "detail": "Project key already exists",
+    "error": {
+      "code": "http_error",
+      "message": "Project key already exists"
+    }
+  }
+}

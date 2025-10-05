@@ -1,0 +1,62 @@
+INFO:     Started server process [15912]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
+2025-10-04T05:01:52.977 | INFO | req=c86f5f3a-7d63-45b6-b512-0ba1517481a7 | route=/openapi.json | tenant=unknown | msg=START
+2025-10-04T05:01:52.994 | INFO | req=c86f5f3a-7d63-45b6-b512-0ba1517481a7 | route=/openapi.json | tenant=unknown | msg=END status=200 ms=20.4
+2025-10-04T05:01:52.994 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:64856 - "GET /openapi.json HTTP/1.1" 200 OK
+2025-10-04T05:01:53.206 | INFO | req=bf01b38d-df09-4d25-b3f2-b7594b522905 | route=/auth/token | tenant=unknown | msg=START
+2025-10-04T05:01:53.212 | INFO | req=bf01b38d-df09-4d25-b3f2-b7594b522905 | route=/auth/token | tenant=unknown | msg=END status=200 ms=7.3
+INFO:     127.0.0.1:64858 - "POST /auth/token?username=po_admin&password=x HTTP/1.1" 200 OK
+2025-10-04T05:01:53.212 | INFO | req= | route= | tenant= | msg=access
+2025-10-04T05:01:53.212 | INFO | req=e97e9ad9-9334-4923-8436-66eb0524fc21 | route=/projects | tenant=unknown | msg=START
+2025-10-04T05:01:53.212 | INFO | req=e97e9ad9-9334-4923-8436-66eb0524fc21 | route=/projects | tenant=tenant1 | msg=END status=409 ms=8.3
+2025-10-04T05:01:53.212 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:64858 - "POST /projects?key=PX&name=Realtime%20Pricing&description=Smoke%20validation%20project HTTP/1.1" 409 Conflict
+2025-10-04T05:01:53.212 | INFO | req=9600bb8c-7dab-432b-b789-1bf16c361102 | route=/projects/PX | tenant=unknown | msg=START
+2025-10-04T05:01:53.228 | INFO | req=9600bb8c-7dab-432b-b789-1bf16c361102 | route=/projects/PX | tenant=tenant1 | msg=END status=200 ms=4.7
+2025-10-04T05:01:53.228 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:64858 - "GET /projects/PX HTTP/1.1" 200 OK
+2025-10-04T05:01:53.228 | INFO | req=1f8e054c-e67e-461f-8699-8a33bd253476 | route=/upload | tenant=unknown | msg=START
+2025-10-04T05:02:02.459 | WARNING | req= | route= | tenant= | msg=Falling back to local knowledge store
+2025-10-04T05:02:02.459 | INFO | req= | route= | tenant=tenant1 | msg=Stored fallback knowledge chunks
+INFO:     127.0.0.1:64858 - "POST /upload HTTP/1.1" 200 OK
+2025-10-04T05:02:02.459 | INFO | req=1f8e054c-e67e-461f-8699-8a33bd253476 | route=/upload | tenant=tenant1 | msg=END status=200 ms=9233.9
+2025-10-04T05:02:02.459 | INFO | req= | route= | tenant= | msg=access
+2025-10-04T05:02:02.475 | INFO | req=6e20f633-cf7b-47cd-b611-09ed8dcca557 | route=/retrieve | tenant=unknown | msg=START
+2025-10-04T05:02:02.475 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T05:02:13.394 | WARNING | req= | route= | tenant= | msg=Hybrid retriever unavailable; switching to fallback
+2025-10-04T05:02:13.394 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:64858 - "POST /retrieve HTTP/1.1" 200 OK
+2025-10-04T05:02:13.394 | INFO | req=6e20f633-cf7b-47cd-b611-09ed8dcca557 | route=/retrieve | tenant=tenant1 | msg=END status=200 ms=10925.7
+2025-10-04T05:02:13.394 | INFO | req= | route= | tenant= | msg=access
+2025-10-04T05:02:13.394 | INFO | req=353779da-3e56-4e20-9d99-df311cab5f93 | route=/staff/recommend | tenant=unknown | msg=START
+2025-10-04T05:02:13.410 | INFO | req=353779da-3e56-4e20-9d99-df311cab5f93 | route=/staff/recommend | tenant=tenant1 | msg=END status=200 ms=8.4
+2025-10-04T05:02:13.410 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:64858 - "GET /staff/recommend?project_id=1 HTTP/1.1" 200 OK
+2025-10-04T05:02:13.410 | INFO | req=b1e3b915-e4b7-4e20-9494-6093f5d43e72 | route=/onboarding/generate | tenant=unknown | msg=START
+2025-10-04T05:02:14.860 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T05:02:18.531 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+2025-10-04T05:02:23.066 | INFO | req= | route= | tenant= | msg=publish_artifact:jira_epic
+INFO:     127.0.0.1:64858 - "POST /onboarding/generate HTTP/1.1" 200 OK
+2025-10-04T05:02:23.066 | INFO | req=b1e3b915-e4b7-4e20-9494-6093f5d43e72 | route=/onboarding/generate | tenant=tenant1 | msg=END status=200 ms=9666.7
+2025-10-04T05:02:23.066 | INFO | req= | route= | tenant= | msg=access
+2025-10-04T05:02:23.081 | INFO | req=26667ea8-79ef-4925-80c4-ff1b8e753fa9 | route=/agent/query | tenant=unknown | msg=START
+2025-10-04T05:02:25.772 | INFO | req= | route= | tenant= | msg=PolicyPlan compiled
+2025-10-04T05:02:29.558 | INFO | req= | route= | tenant= | msg=PolicyPlan execution summary
+INFO:     127.0.0.1:64858 - "POST /agent/query HTTP/1.1" 200 OK
+2025-10-04T05:02:31.510 | INFO | req=26667ea8-79ef-4925-80c4-ff1b8e753fa9 | route=/agent/query | tenant=tenant1 | msg=END status=200 ms=8429.3
+2025-10-04T05:02:31.510 | INFO | req= | route= | tenant= | msg=access
+2025-10-04T05:02:31.510 | INFO | req=b9effaab-f35e-4d69-b435-e43787a8f155 | route=/skills/profile | tenant=unknown | msg=START
+2025-10-04T05:02:31.519 | INFO | req=b9effaab-f35e-4d69-b435-e43787a8f155 | route=/skills/profile | tenant=tenant1 | msg=END status=200 ms=5.7
+2025-10-04T05:02:31.519 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:64858 - "GET /skills/profile?developer_id=1 HTTP/1.1" 200 OK
+2025-10-04T05:02:31.519 | INFO | req=0e22b488-3c9e-4767-a0a5-825d9b585fc9 | route=/audit | tenant=unknown | msg=START
+2025-10-04T05:02:31.525 | INFO | req=0e22b488-3c9e-4767-a0a5-825d9b585fc9 | route=/audit | tenant=tenant1 | msg=END status=200 ms=11.8
+2025-10-04T05:02:31.525 | INFO | req= | route= | tenant= | msg=access
+INFO:     127.0.0.1:64858 - "GET /audit?limit=20 HTTP/1.1" 200 OK
+2025-10-04T05:02:31.535 | INFO | req=c092302a-7496-4bb8-b65e-284c6cc461ba | route=/events/github | tenant=unknown | msg=START
+INFO:     127.0.0.1:64858 - "POST /events/github HTTP/1.1" 200 OK
+2025-10-04T05:02:31.990 | INFO | req=c092302a-7496-4bb8-b65e-284c6cc461ba | route=/events/github | tenant=unknown | msg=END status=200 ms=461.9
+2025-10-04T05:02:31.990 | INFO | req= | route= | tenant= | msg=access

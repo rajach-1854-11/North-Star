@@ -1,0 +1,4 @@
+01:16:06 Worker rq:worker:a3b3c18170bb48508e21cdf90ad79e06 started with PID 23572, version 1.16.2
+01:16:06 Subscribing to channel rq:pubsub:a3b3c18170bb48508e21cdf90ad79e06
+01:16:06 *** Listening on events...
+01:16:06 Cleaning registries for queue: events

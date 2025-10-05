@@ -1,0 +1,76 @@
+{
+  "audit_ref": "onboarding",
+  "message": null,
+  "plan": {
+    "artifacts": {
+      "confluence": {
+        "key": null,
+        "page_id": null,
+        "url": null
+      },
+      "jira_epic": {
+        "key": "PX-2",
+        "page_id": null,
+        "url": "https://northstar-hackathon.atlassian.net/browse/PX-2"
+      }
+    },
+    "gaps": [
+      {
+        "confidence": 0.6,
+        "topic": "opentelemetry"
+      },
+      {
+        "confidence": 0.2,
+        "topic": "kafka"
+      },
+      {
+        "confidence": 0.08,
+        "topic": "engineering.backend.kafka"
+      }
+    ],
+    "notice": null,
+    "summary": "Personalized onboarding plan for Alex Developer",
+    "two_week_plan": [
+      {
+        "day": 1,
+        "task": "Review project PX documentation"
+      },
+      {
+        "day": 2,
+        "task": " Familiarize with opentelemetry"
+      },
+      {
+        "day": 3,
+        "task": "Learn about kafka"
+      },
+      {
+        "day": 4,
+        "task": "Understand engineering.backend.kafka"
+      },
+      {
+        "day": 5,
+        "task": "Complete onboarding tasks"
+      },
+      {
+        "day": 6,
+        "task": "Continue onboarding tasks"
+      },
+      {
+        "day": 7,
+        "task": "Continue onboarding tasks"
+      },
+      {
+        "day": 8,
+        "task": "Continue onboarding tasks"
+      },
+      {
+        "day": 9,
+        "task": "Continue onboarding tasks"
+      },
+      {
+        "day": 10,
+        "task": "Complete onboarding tasks"
+      }
+    ]
+  }
+}

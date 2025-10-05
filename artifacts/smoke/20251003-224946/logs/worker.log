@@ -1,0 +1,4 @@
+04:19:50 Worker rq:worker:bdd9e2103ce14c188e14203e0a1453eb started with PID 1912, version 1.16.2
+04:19:50 Subscribing to channel rq:pubsub:bdd9e2103ce14c188e14203e0a1453eb
+04:19:51 *** Listening on events...
+04:19:51 Cleaning registries for queue: events

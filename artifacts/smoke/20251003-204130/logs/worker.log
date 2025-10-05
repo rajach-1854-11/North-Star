@@ -1,0 +1,4 @@
+02:11:34 Worker rq:worker:ac59457e64c44ad299304a47cc8be9a0 started with PID 8100, version 1.16.2
+02:11:34 Subscribing to channel rq:pubsub:ac59457e64c44ad299304a47cc8be9a0
+02:11:34 *** Listening on events...
+02:11:34 Cleaning registries for queue: events

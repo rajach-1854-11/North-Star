@@ -1,0 +1,7 @@
+{
+  "detail": "Project key already exists",
+  "error": {
+    "code": "http_error",
+    "message": "Project key already exists"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "detail": "Failed to generate onboarding plan: 400: {'code': 'TOOL_ARGS_INVALID', 'message': 'Jira issue create failed (400)', 'details': {'body': '{\"errorMessages\":[],\"errors\":{\"customfield_10011\":\"Field \\'customfield_10011\\' cannot be set. It is not on the appropriate screen, or unknown.\"}}', 'payload': {'fields': {'project': {'id': '10002'}, 'issuetype': {'name': 'Epic'}, 'summary': 'Onboarding Epic for Alex Developer', 'description': {'type': 'doc', 'version': 1, 'content': [{'type': 'paragraph', 'content': [{'type': 'text', 'text': '10-working-day onboarding tasks for Alex Developer'}]}]}, 'labels': ['onboarding', 'project PX'], 'customfield_10011': 'Onboarding Epic for Alex Developer'}}}}",
+  "error": {
+    "code": "http_error",
+    "message": "Failed to generate onboarding plan: 400: {'code': 'TOOL_ARGS_INVALID', 'message': 'Jira issue create failed (400)', 'details': {'body': '{\"errorMessages\":[],\"errors\":{\"customfield_10011\":\"Field \\'customfield_10011\\' cannot be set. It is not on the appropriate screen, or unknown.\"}}', 'payload': {'fields': {'project': {'id': '10002'}, 'issuetype': {'name': 'Epic'}, 'summary': 'Onboarding Epic for Alex Developer', 'description': {'type': 'doc', 'version': 1, 'content': [{'type': 'paragraph', 'content': [{'type': 'text', 'text': '10-working-day onboarding tasks for Alex Developer'}]}]}, 'labels': ['onboarding', 'project PX'], 'customfield_10011': 'Onboarding Epic for Alex Developer'}}}}"
+  }
+}

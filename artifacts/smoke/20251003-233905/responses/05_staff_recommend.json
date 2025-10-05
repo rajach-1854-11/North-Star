@@ -1,0 +1,27 @@
+{
+  "candidates": [
+    {
+      "availability": {
+        "earliest_start": null,
+        "percent_free": 0.5
+      },
+      "developer_id": 1,
+      "explanations": [
+        "Project similarity is cosine over hierarchical skill paths.",
+        "Proven skill coverage is overlap against required weights.",
+        "Recency uses exponential decay with 90-day half-life.",
+        "Gap #1: opentelemetry (\u0394=0.60)",
+        "Gap #2: kafka (\u0394=0.20)",
+        "Gap #3: engineering.backend.kafka (\u0394=0.08)"
+      ],
+      "factors": {
+        "availability": 0.8,
+        "project_similarity": 0.794,
+        "proven_skill": 0.725,
+        "recency": 1.0
+      },
+      "fit": 0.8151
+    }
+  ],
+  "project_id": 1
+}

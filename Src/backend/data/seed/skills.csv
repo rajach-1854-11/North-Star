@@ -1,0 +1,13 @@
+id,key,name
+1,python,Python
+2,fastapi,FastAPI
+3,postgres,PostgreSQL
+4,redis,Redis
+5,qdrant,Qdrant
+6,rbac,RBAC
+7,oauth2,OAuth2 / JWT
+8,jira,Jira
+9,confluence,Confluence
+10,docker,Docker
+11,gha,GitHub Actions
+12,typescript,TypeScript

@@ -1,0 +1,4 @@
+01:45:41 Worker rq:worker:77e051b793f545969f8dda6b1e8188fb started with PID 18408, version 1.16.2
+01:45:41 Subscribing to channel rq:pubsub:77e051b793f545969f8dda6b1e8188fb
+01:45:41 *** Listening on events...
+01:45:41 Cleaning registries for queue: events

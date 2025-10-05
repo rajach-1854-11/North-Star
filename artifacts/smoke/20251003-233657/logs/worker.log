@@ -1,0 +1,4 @@
+2025-10-04 05:07:01,126 | INFO | rq.worker | Worker rq:worker:ae663d194ec04930851d99f9330c509c started with PID 11764, version 1.16.2
+2025-10-04 05:07:01,126 | INFO | rq.worker | Subscribing to channel rq:pubsub:ae663d194ec04930851d99f9330c509c
+2025-10-04 05:07:01,275 | INFO | rq.worker | *** Listening on events...
+2025-10-04 05:07:01,309 | INFO | rq.worker | Cleaning registries for queue: events

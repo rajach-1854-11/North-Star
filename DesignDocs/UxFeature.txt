@@ -1,0 +1,180 @@
+North Star UX Feature Compendium
+================================
+
+This dossier links every front-of-house capability to the API surface, RBAC contract, data touchpoints, and the background automations that make the UX behave as shipped. Cross-reference the C4 deck for structural context, the ERD/Table Dictionary for storage contracts, and the `Sequences/` directory for step-by-step call traces.
+
+Feature: Authentication & Session Bootstrap
+-------------------------------------------
+Summary: Issue signed JWTs so the SPA can call tenant-scoped APIs without re-authenticating.
+Primary personas: All (Admin, Product Owner, Business Analyst, Developer).
+Entry points: `POST /auth/token` (`Sequences/seq_api__post_auth_token.md`).
+RBAC contract: None (public) but credentials checked against `user.password_hash`.
+Data reads/writes: Reads `user`, `developer`, `project`, `assignment` for role context and accessible projects.
+Downstream dependencies: JWT settings (`jwt_secret`, `jwt_iss`, `jwt_aud`); accessible projects infer from active assignments.
+Observability: Failed auth responds 401; no audit entry is written—logins rely on HTTP 401 telemetry.
+Edge cases & UX notes: Returns token with one-hour TTL; developers get self-only access, other roles get all project keys. Invalid credentials message is generic.
+Config toggles: `JWT_*` settings must be present; absence of `jwt_secret` will crash startup.
+Quality coverage: `tests/test_security.py::test_token_requires_valid_credentials` exercises the rejection path.
+
+Feature: Admin User Management
+------------------------------
+Summary: Tenant admins review and adjust teammate roles.
+Primary personas: Admin.
+Entry points: `GET /admin/users`, `PATCH /admin/users/{id}/role` (`seq_api__get_admin_users.md`, `seq_api__patch_admin_users_user_id_role.md`).
+RBAC contract: `require_role("Admin")` for both list and patch operations.
+Data reads/writes: Reads `user` rows; updates `user.role` with validation against {Admin, PO, BA, Dev}.
+Downstream dependencies: None; responses reuse `UserResp` schema for UI tables.
+Observability: Successful role changes persist to DB and surface in audit log via middleware.
+Edge cases & UX notes: Unknown user -> 404; illegal role -> 422. Duplicated patch returns latest role.
+Config toggles: None.
+Quality coverage: `tests/test_admin_routes.py::test_patch_role_enforces_admin` (authorization) and `test_invalid_role_rejected`.
+
+Feature: Project Catalog Management
+-----------------------------------
+Summary: Stand up and browse tenant projects that drive staffing/onboarding scopes.
+Primary personas: Admin, Product Owner, Business Analyst, Developer (read-only).
+Entry points: `POST /projects`, `GET /projects`, `GET /projects/{key}` (`seq_api__projects_post.md`, `seq_api__projects_get.md`, `seq_api__projects_key_get.md`).
+RBAC contract: Create requires Admin/PO; list/view allow Admin/PO/BA/Dev.
+Data reads/writes: Insert into `project`; fetch tenant-scoped lists. Unique constraint on `project.key` surfaced as 409 Conflict.
+Downstream dependencies: Project keys feed staffing, onboarding, retrieval, agent planner metadata.
+Observability: Project creation emits audit entries; failures logged with integrity errors.
+Edge cases & UX notes: Duplicate key -> UI should surface 409 with message "Project key already exists"; missing tenant context (misconfigured token) -> 400.
+Config toggles: None.
+Quality coverage: `tests/test_project_routes.py` (creation success and conflict), `tests/test_project_read_routes.py` (tenant filtering).
+
+Feature: Assignment Lifecycle
+-----------------------------
+Summary: Track which developers are staffed where, enabling access control, staffing fit, and developer context in auth payloads.
+Primary personas: Admin, Product Owner (read/write), Business Analyst (read-only).
+Entry points: `POST /assignments`, `PATCH /assignments/{id}`, `GET /projects/{id}/assignments` (`seq_api__post_assignments.md`, `seq_api__patch_assignments_assignment_id.md`, `seq_api__projects_project_id_assignments_get.md`).
+RBAC contract: Create/update -> Admin/PO; list -> Admin/PO/BA.
+Data reads/writes: Mutates `assignment`; validates `developer` and `project` tenant match; unique constraint `uq_dev_proj` prevents duplicates.
+Downstream dependencies: Assignment status drives accessible projects for developers (`auth/token`), staffing fit, and audit trails.
+Observability: Conflict errors bubble as 409; updates recorded via audit middleware.
+Edge cases & UX notes: Patching an assignment that belongs to another tenant returns 404 to avoid leakage. No soft-delete—set `status` to "inactive" with optional `end_date`.
+Config toggles: None.
+Quality coverage: `tests/test_assignment_routes.py` ensures tenant isolation and conflict responses.
+
+Feature: Staffing Recommendation Console
+----------------------------------------
+Summary: Surface a ranked list of candidate developers with scoring explanations for a project.
+Primary personas: Admin, Product Owner, Business Analyst.
+Entry points: `GET /staff/recommend?project_id=*` (`seq_api__staff_recommend_get.md`).
+RBAC contract: Admin/PO/BA only.
+Data reads/writes: Reads `project`, `developer`, `developer_skill`, `project_skill`; no writes.
+Downstream dependencies: Uses `rank_candidates` (cosine similarity, recency boost). Returns weights for UX charts, explanation bullet points, and availability hints.
+Observability: No external calls; pure SQL + application logic. Logging limited to defaults.
+Edge cases & UX notes: Missing tenant/project -> 404; empty tenant -> empty candidate array with HTTP 200.
+Config toggles: None.
+Quality coverage: `tests/test_staff_routes.py` verifies RBAC and response schema; `skill_tests/test_skill_attribution.py` indirectly assures scoring inputs.
+
+Feature: Onboarding Plan Workspace
+----------------------------------
+Summary: Generate a two-week onboarding plan that stitches planner output with Talent Graph gaps and publishes artifacts to Atlassian.
+Primary personas: Admin, Product Owner.
+Entry points: `POST /onboarding/generate` (`seq_api__post_onboarding_generate.md`).
+RBAC contract: Enforced twice—router `require_role("Admin","PO")` and port guard for defense-in-depth.
+Data reads/writes: Reads `project`, `developer`, Talent Graph tables (`project_skill`, `developer_skill`). No direct writes; planner execution may create Jira/Confluence content via tools.
+Downstream dependencies: `app.application.onboarding_service.generate_onboarding` orchestrates planner output; uses ABMapper if configured for rosetta narratives.
+Observability: Warning log when planner falls back (`Planner fallback engaged…`). Audit token `audit_ref="onboarding"` for trace linkage.
+Edge cases & UX notes: Missing Atlassian connectivity -> HTTP 502 surfaces ExternalServiceError message; planner outages yield heuristic plan plus `message` describing fallback.
+Config toggles: `LLM_PROVIDER`, `ATLASSIAN_*`, `ABMAP_ENABLED` (rosetta enrichment).
+Quality coverage: `tests/test_onboarding.py` (primary happy path), `tests/test_agent_publish.py::test_onboarding_plan_fallback` ensures heuristic path.
+
+Feature: Agent Query & Publish Console
+--------------------------------------
+Summary: Allow power users to craft arbitrary prompts, review the generated plan, and execute tool chain (rag_search, Jira, Confluence).
+Primary personas: Admin, Product Owner, Business Analyst, Developer (self-service insights).
+Entry points: `POST /agent/query` (`seq_api__agent_query_post.md`).
+RBAC contract: Router permits Admin/PO/BA/Dev; port sanitizes outputs and enforces planner policies.
+Data reads/writes: Planner leverages same data as onboarding; tool executions may touch Atlassian APIs. Stores execution records in `tool_execution` table.
+Downstream dependencies: `app.ports.planner` handles plan creation, placeholder scrubbing, Jira/Confluence templating.
+Observability: Artifacts returned per step; audit logs capture request_id/status. Metrics emitted via planner logging. Sanitization verified by tests.
+Edge cases & UX notes: Placeholder args replaced/cleansed (see `tests/test_planner_sanitization.py`). When planner returns fallback plan, response includes `message` flag. HTTP errors embed structured payloads (`detail.code`).
+Config toggles: `LLM_PROVIDER`, `ATLASSIAN_SPACE`, `ATLASSIAN_PROJECT_KEY/ID` for defaults.
+Quality coverage: `tests/test_agent_publish.py` covers RBAC, Atlassian tool dispatch, fallback messaging.
+
+Feature: Retrieval Workbench
+----------------------------
+Summary: Hybrid search across tenant knowledge (Qdrant + local fallback) with policy-aware filtering and optional Rosetta insights.
+Primary personas: Admin, Product Owner, Business Analyst, Developer.
+Entry points: `POST /retrieve` (`seq_api__post_retrieve.md`).
+RBAC contract: Admin/PO/BA/Dev; per-target enforcement ensures only accessible projects are queried.
+Data reads/writes: Reads tenant existence from `tenant`, optionally `Project`; writes none. Evidence builder pulls from retrieval artifacts.
+Downstream dependencies: `app.adapters.hybrid_retriever.search`, `policy.compiler`, fallback local KB, ABMapper for rosetta narrative.
+Observability: Log lines annotate router mode, plan hash, dedupe stats; metrics available via Loguru context. Fallback message returned when remote search fails.
+Edge cases & UX notes: Strategy `learned` returns 501 (not implemented). If ABMap disabled or no hits, Rosetta fields omitted. Unauthorized target -> 403 with explicit project name.
+Config toggles: `ROUTER_MODE`, `ABMAP_ENABLED`, `QDRANT_URL`; fallback engages automatically on errors.
+Quality coverage: `tests/test_retriever_router.py`, `tests/test_qdrant_retriever.py` (dimension guard rails, fallback), `tests/test_policy_enforcement.py` (project allow/deny filters).
+
+Feature: Knowledge Upload & Ingestion
+------------------------------------
+Summary: Accept project documents, push to remote vector index, and mirror into local fallback store for high availability.
+Primary personas: Product Owner (only role allowed to upload).
+Entry points: `POST /upload` (`seq_api__upload_post.md`).
+RBAC contract: Router and port enforce Product Owner; tenant context required.
+Data reads/writes: Validates `project` ownership; remote ingest via `ingest_file`; fallback writes to `local_kb` tables and optionally `ingestion_event` logs.
+Downstream dependencies: External file processors (vector index) plus local chunk store.
+Observability: Warnings on remote failure, debug logs when mirror fails. Response includes fallback message when vector index unreachable.
+Edge cases & UX notes: Missing project -> 404; remote failure -> 200 with message "Remote vector index unavailable…"; filenames propagate to artifacts for UI display.
+Config toggles: `INGESTION_ENDPOINT`, `FALLBACK_ENABLED`; implicit reliance on `settings.env` for behavior.
+Quality coverage: `tests/test_upload_routes.py` ensures RBAC, project scoping, fallback message semantics.
+
+Feature: Skill Profile Explorer
+-------------------------------
+Summary: Chart skill vectors for any developer (or self for Dev role) to highlight strengths and last-seen timestamps.
+Primary personas: Admin, PO, BA (any developer), Developer (self only).
+Entry points: `GET /skills/profile` (`seq_api__get_skills_profile.md`).
+RBAC contract: Derives from token: Developers restricted to their own `developer_id`; other roles can inspect any tenant developer.
+Data reads/writes: Joins `skill` and `developer_skill`, returns top 50 paths with scores and recency.
+Downstream dependencies: None beyond DB; UI can transform to charts.
+Observability: 403 when Dev misuses endpoint; 404 for unknown developer.
+Edge cases & UX notes: Null `last_seen_at` omitted; `SkillEntry.last_seen` can be `null`—UI should guard.
+Config toggles: None.
+Quality coverage: `tests/test_skills_routes.py` covers RBAC and response structure.
+
+Feature: Audit Log Viewer
+-------------------------
+Summary: Allow auditors to review recent tenant actions with filtering by actor.
+Primary personas: Admin, Product Owner, Business Analyst.
+Entry points: `GET /audit` (`seq_api__get_audit.md`).
+RBAC contract: Admin/PO/BA.
+Data reads/writes: Reads `audit_log`; limited to 200 rows per request.
+Downstream dependencies: Relies on middleware instrumentation populating audit rows.
+Observability: API returns `AuditResp` with timestamp, actor, result code; UI should format `result_code`.
+Edge cases & UX notes: Missing tenant -> 400; actor filter outside tenant -> empty list (no leakage).
+Config toggles: None.
+Quality coverage: `tests/test_audit_routes.py` ensures limit enforcement and RBAC.
+
+Feature: Integration Intake & Skill Attribution Pipeline
+-------------------------------------------------------
+Summary: Capture GitHub/Jira webhooks, enforce idempotency, enrich with identity, and update attribution workflows plus skill graph.
+Primary personas: System integration (headless); UX consumes derived data (skill scores, onboarding gaps, staffing evidence).
+Entry points: `POST /events/github`, `POST /events/jira` (`seq_api__post_events_github.md`, `seq_api__post_events_jira.md`). Background sequences under `seq_worker__*.md`.
+RBAC contract: No auth, but GitHub signature verified (`X-Hub-Signature-256`); Jira route guarded by `settings.atlassian_api_token` in prod.
+Data reads/writes: Writes `integration_event_log`, `attribution_workflow`, `developer_identity`, `developer_skill`, `peer_review_credit`, `attribution_triage`. Pulls repository mappings & identities for context.
+Downstream dependencies: Redis/RQ queue, worker services (`github_processor`, `jira_processor`, `skill_extractor`). Integrates with Atlassian, GitHub APIs for metadata.
+Observability: Metrics (`github.event`, `github.identity`, `github.repo_context`), structured logs with delivery IDs, triage records for missing mappings or identities.
+Edge cases & UX notes: Duplicate deliveries short-circuit (`status="duplicate_ignored"`); missing repo mapping or identity triggers triage entry for manual review (findable via `attribution_triage`). Github planner auto-provision toggle `auto_provision_dev_from_gh` adds developers on the fly.
+Config toggles: `GITHUB_WEBHOOK_SECRET`, `ATLASSIAN_API_TOKEN`, `AUTO_PROVISION_DEV_FROM_GH`, `QUEUE_MODE`.
+Quality coverage: `tests/test_github_webhook.py`, `tests/test_jira_webhook.py` for signature/idempotency; worker unit tests for processors (`tests/test_worker_github_processor.py`, `tests/test_worker_skill_extractor.py`).
+
+Feature: Planner Tooling & Isolation Proofs
+-------------------------------------------
+Summary: Keep agent tooling safe by sanitizing placeholder inputs and capturing artifacts for isolation proofs and compliance bundles.
+Primary personas: Compliance reviewers; indirectly benefits every planner-driven UX.
+Entry points: Internally invoked via planner execution; surfaced through `AgentQueryResp.artifacts` and `OnboardingResp.artifacts`. Sequence references: `seq_internal__app_ports_planner_execute_plan.md`, `seq_worker__worker_handlers_evidence_builder_*`.
+RBAC contract: Respects calling endpoint’s RBAC; planner itself checks user claims before running tools.
+Data reads/writes: Writes to `tool_execution`, `audit_log`, optionally generates proof bundles under `artifacts/e2e` during CI.
+Downstream dependencies: Atlassian adapters, evidence builder (Confluence/Jira HTML), isolation proof scripts (`run_isolation_proof.*`).
+Observability: Tests `tests/test_planner_sanitization.py` ensure placeholder cleanup; `tests/test_agent_publish.py` confirms Atlassian tool failures surface actionable errors. Audit entries log action `agent.execute` with request IDs.
+Edge cases & UX notes: Missing Atlassian config -> structured error message with `code` (e.g., `ATLASSIAN_MISSING_SPACE`). Sanitized summaries strip `TODO`, angle-bracket placeholders, ensuring UI never renders raw template text.
+Config toggles: `ATLASSIAN_SPACE`, `ATLASSIAN_PROJECT_KEY/ID`, `ISOLATION_PROOF_MODE`.
+Quality coverage: Planner test suite plus e2e isolation proof smoke runs (see `artifacts/e2e/*`).
+
+How to Use This File
+--------------------
+* Designers can map personas to routes and ensure UI affordances match RBAC constraints.
+* Engineers can double-click feature subsections to jump into relevant sequence docs and code paths.
+* Product and compliance can audit edge cases/fallbacks before releases.
+* When adding a feature, replicate this structure so build scripts can diff for regressions (see `inventory.json` for machine-readable mapping).

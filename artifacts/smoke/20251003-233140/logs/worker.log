@@ -1,0 +1,16 @@
+05:01:44 Worker rq:worker:a2451bc23485499cb2a10ab25caaeac0 started with PID 27604, version 1.16.2
+05:01:44 Subscribing to channel rq:pubsub:a2451bc23485499cb2a10ab25caaeac0
+05:01:44 *** Listening on events...
+05:01:44 Cleaning registries for queue: events
+05:02:32 events: worker.handlers.github_handler.handle_github_event({'event': 'push', 'payload': {'ref': 'refs/heads/main', 'before': '11111111...) (dce87b17-cf37-41d7-8538-1695e6d59a4c)
+05:02:32 Worker rq:worker:a2451bc23485499cb2a10ab25caaeac0: found an unhandled exception, quitting...
+Traceback (most recent call last):
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\rq\worker.py", line 434, in work
+    self.execute_job(job, queue)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\rq\worker.py", line 1274, in execute_job
+    self.fork_work_horse(job, queue)
+  File "C:\Users\rchan\OneDrive\Desktop\Git-Rajach-1854-11\venv\Lib\site-packages\rq\worker.py", line 1172, in fork_work_horse
+    child_pid = os.fork()
+                ^^^^^^^
+AttributeError: module 'os' has no attribute 'fork'
+05:02:32 Unsubscribing from channel rq:pubsub:a2451bc23485499cb2a10ab25caaeac0
