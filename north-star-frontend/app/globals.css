@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body { height: 100%; background: #0D1117; color: #E5E7EB; }
+
+*:focus-visible { outline: none; box-shadow: 0 0 0 2px #3B82F6, 0 0 0 4px #0D1117; }
