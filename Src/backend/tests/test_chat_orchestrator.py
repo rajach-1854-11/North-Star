@@ -187,7 +187,7 @@ def test_chat_orchestrator_reports_staffing_recommendation(
             },
             {
                 "tool": "staffing_recommend",
-                "args": {"project_key": "PX"},
+                "args": {"project_key": "PX", "include_full": True},
             },
         ],
         "output": {"summary": "", "gaps": [], "two_week_plan": [], "notes": ""},
@@ -212,6 +212,10 @@ def test_chat_orchestrator_reports_staffing_recommendation(
         "summary": "Top staffing match: Alex Johnson (fit 0.93)",
         "top_candidate": {"developer_id": 7, "developer_name": "Alex Johnson", "fit": 0.93},
         "candidates": [
+            {"developer_id": 7, "developer_name": "Alex Johnson", "fit": 0.93},
+            {"developer_id": 12, "developer_name": "Taylor Smith", "fit": 0.88},
+        ],
+        "all_candidates": [
             {"developer_id": 7, "developer_name": "Alex Johnson", "fit": 0.93},
             {"developer_id": 12, "developer_name": "Taylor Smith", "fit": 0.88},
         ],
@@ -245,7 +249,9 @@ def test_chat_orchestrator_reports_staffing_recommendation(
     resp = orchestrator.handle(req)
 
     assert "Staffing recommendation" in resp.reply_md
+    assert "Staffing recommendation" in resp.reply_md
     assert "Alex Johnson" in resp.reply_md
+    assert "Taylor Smith" in resp.reply_md
     assert "fit 0.93" in resp.reply_md
 
 

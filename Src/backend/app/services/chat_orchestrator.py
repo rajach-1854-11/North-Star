@@ -687,10 +687,6 @@ class ChatOrchestrator:
         if project_label:
             label += f" for {project_label}"
 
-        summary = str(payload.get("summary") or "").strip()
-        if summary:
-            return f"{label}: {self._clip_sentence(summary, 160)}"
-
         top_candidate = payload.get("top_candidate") if isinstance(payload.get("top_candidate"), dict) else {}
         candidate_name = str(top_candidate.get("developer_name") or "").strip()
         candidate_id = top_candidate.get("developer_id")
@@ -709,6 +705,27 @@ class ChatOrchestrator:
         if isinstance(total_candidates, int) and total_candidates > 0:
             plural = "s" if total_candidates != 1 else ""
             details.append(f"{total_candidates} candidate{plural} evaluated")
+
+        include_full = bool(args.get("include_full")) or bool(payload.get("all_candidates"))
+        roster = payload.get("all_candidates") if include_full else None
+        if include_full and isinstance(roster, list) and roster:
+            roster_lines: List[str] = []
+            for index, candidate in enumerate(roster, start=1):
+                if not isinstance(candidate, dict):
+                    continue
+                name = str(candidate.get("developer_name") or "").strip()
+                if not name:
+                    identifier = candidate.get("developer_id")
+                    name = f"Developer {identifier}" if identifier is not None else "Developer"
+                fit_value = candidate.get("fit")
+                fit_part = f" (fit {fit_value:.2f})" if isinstance(fit_value, (int, float)) else ""
+                roster_lines.append(f"{index}. {name}{fit_part}")
+            if roster_lines:
+                return f"{label} (full ranking):\n  " + "\n  ".join(roster_lines)
+
+        summary = str(payload.get("summary") or "").strip()
+        if summary:
+            return f"{label}: {self._clip_sentence(summary, 160)}"
 
         if details:
             return f"{label}: {'; '.join(details)}"

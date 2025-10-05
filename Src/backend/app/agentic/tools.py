@@ -484,12 +484,21 @@ def staffing_recommend_tool(
         payload = response.model_dump()
         all_candidates: List[Dict[str, Any]] = payload.get("candidates", []) or []
 
-        developer_ids = [candidate.get("developer_id") for candidate in all_candidates]
+        developer_ids: List[int] = []
+        for candidate in all_candidates:
+            dev_id = candidate.get("developer_id")
+            try:
+                parsed_id = int(dev_id)
+            except (TypeError, ValueError):
+                continue
+            developer_ids.append(parsed_id)
+            candidate["developer_id"] = parsed_id
+
         name_map: Dict[int, str] = {}
         if developer_ids:
             rows = (
                 session.query(m.Developer.id, m.Developer.display_name)
-                .filter(m.Developer.id.in_(developer_ids))
+                .filter(m.Developer.id.in_(sorted(set(developer_ids))))
                 .all()
             )
             name_map = {dev_id: display_name for dev_id, display_name in rows}
