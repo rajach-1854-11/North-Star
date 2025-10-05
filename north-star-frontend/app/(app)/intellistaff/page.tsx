@@ -5,13 +5,13 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-type Candidate = { id: number; fit: number; skills: string[] };
+type Candidate = { id: number; name: string; fit: number; skills: string[] };
 
 const CANDIDATES: Candidate[] = [
-  { id: 23, fit: 0.88, skills: ["react","fastapi","qdrant"] },
-  { id: 42, fit: 0.79, skills: ["python","nextjs","qdrant"] },
-  { id: 17, fit: 0.74, skills: ["react","typescript"] },
-  { id: 58, fit: 0.70, skills: ["python","fastapi"] }
+  { id: 23, name: "Aisha Patel", fit: 0.88, skills: ["react","fastapi","qdrant"] },
+  { id: 42, name: "Jordan Alvarez", fit: 0.79, skills: ["python","nextjs","qdrant"] },
+  { id: 17, name: "Mei Chen", fit: 0.74, skills: ["react","typescript"] },
+  { id: 58, name: "Noah Williams", fit: 0.70, skills: ["python","fastapi"] }
 ];
 
 export default function IntelliStaff() {
@@ -77,8 +77,8 @@ export default function IntelliStaff() {
                 <div className="flex items-center gap-3">
                   <input aria-label={`Select developer ${c.id}`} type="checkbox" checked={selected.includes(c.id)} onChange={()=>toggleOne(c.id)} />
                   <div>
-                    <div className="text-xl font-semibold">Developer #{c.id}</div>
-                    <div className="text-sm text-meta">Fit: {(c.fit * 100).toFixed(1)}% · Skills: {c.skills.join(", ")}</div>
+                    <div className="text-xl font-semibold">{c.name}</div>
+                    <div className="text-sm text-meta">Developer #{c.id} · Fit: {(c.fit * 100).toFixed(1)}% · Skills: {c.skills.join(", ")}</div>
                   </div>
                 </div>
                 <div className="text-sm text-meta">ID: {c.id}</div>
