@@ -5,8 +5,8 @@ export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttrib
   <select
     ref={ref}
     className={clsx(
-      "w-full rounded-2xl border border-white/15 bg-white/[.08] px-3 py-2 text-sm font-medium text-white placeholder:text-white/60 transition-colors",
-      "hover:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/40 focus:border-white/60",
+      "w-full rounded-2xl border border-white/25 bg-white/10 px-3 py-2 text-sm font-medium text-white/95 backdrop-blur transition-colors",
+      "placeholder:text-white/70 focus:text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/70",
       className
     )}
     {...props}
