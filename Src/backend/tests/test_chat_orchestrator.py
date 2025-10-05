@@ -68,7 +68,11 @@ def test_chat_orchestrator_low_diversity(
         "rosetta_narrative_md": None,
     }
 
-    def fake_execute_plan(plan: dict[str, object], _: dict[str, object]) -> dict[str, object]:
+    def fake_execute_plan(
+        plan: dict[str, object],
+        _: dict[str, object],
+        **__: object,
+    ) -> dict[str, object]:
         return {
             "artifacts": {"step_1:rag_search": retrieval_payload},
             "output": plan.get("output", {}),
@@ -140,7 +144,11 @@ def test_chat_orchestrator_reports_tool_results(
         chunk_id="chunk-epic",
     )
 
-    def fake_execute_plan(plan: dict[str, object], _: dict[str, object]) -> dict[str, object]:
+    def fake_execute_plan(
+        plan: dict[str, object],
+        _: dict[str, object],
+        **__: object,
+    ) -> dict[str, object]:
         return {
             "artifacts": {
                 "step_1:rag_search": {"results": [hit], "fallback_message": None, "evidence": None},
@@ -161,7 +169,10 @@ def test_chat_orchestrator_reports_tool_results(
     monkeypatch.setattr("app.services.chat_orchestrator.generate_chat_response", fake_generate_chat_response)
 
     orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
-    req = ChatQueryReq(prompt="create epic", metadata=ChatMetadata(targets=["PX"]))
+    req = ChatQueryReq(
+        prompt="Create a Jira epic for project PX summary='PX onboarding automation' description=\"Automate rituals\"",
+        metadata=ChatMetadata(targets=["PX"]),
+    )
 
     resp = orchestrator.handle(req)
 
@@ -222,7 +233,11 @@ def test_chat_orchestrator_reports_staffing_recommendation(
         "total_candidates": 5,
     }
 
-    def fake_execute_plan(plan: dict[str, object], _: dict[str, object]) -> dict[str, object]:
+    def fake_execute_plan(
+        plan: dict[str, object],
+        _: dict[str, object],
+        **__: object,
+    ) -> dict[str, object]:
         return {
             "artifacts": {
                 "step_1:rag_search": {
@@ -244,7 +259,10 @@ def test_chat_orchestrator_reports_staffing_recommendation(
     )
 
     orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
-    req = ChatQueryReq(prompt="who can help px", metadata=ChatMetadata(targets=["PX"]))
+    req = ChatQueryReq(
+        prompt="Who is the developer best suited for project PX?",
+        metadata=ChatMetadata(targets=["PX"]),
+    )
 
     resp = orchestrator.handle(req)
 
@@ -283,7 +301,11 @@ def test_chat_thread_continuation_uses_history(
 
     hit = RetrieveHit(text="PX answer", score=1.0, source="PX", chunk_id="chunk-1")
 
-    def fake_execute_plan(plan: dict[str, object], _: dict[str, object]) -> dict[str, object]:
+    def fake_execute_plan(
+        plan: dict[str, object],
+        _: dict[str, object],
+        **__: object,
+    ) -> dict[str, object]:
         return {
             "artifacts": {"step_1:rag_search": {"results": [hit], "fallback_message": None, "evidence": None}},
             "output": plan.get("output", {}),
@@ -330,7 +352,11 @@ def test_chat_thread_endpoints(monkeypatch: pytest.MonkeyPatch, client: TestClie
 
     hit = RetrieveHit(text="PX detail", score=0.9, source="PX", chunk_id="chunk-42")
 
-    def fake_execute_plan(plan: dict[str, object], user_claims: dict[str, object]) -> dict[str, object]:
+    def fake_execute_plan(
+        plan: dict[str, object],
+        user_claims: dict[str, object],
+        **__: object,
+    ) -> dict[str, object]:
         return {
             "artifacts": {
                 "step_1:rag_search": {
@@ -473,6 +499,166 @@ def test_execute_plan_respects_aliases_in_explicit_consent(monkeypatch: pytest.M
     assert result["artifacts"]["step_1:confluence_page"]["ok"] is True
 
 
+def test_chat_orchestrator_blocks_unapproved_tool_steps(
+    monkeypatch: pytest.MonkeyPatch,
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    plan_template = {
+        "steps": [
+            {
+                "tool": "rag_search",
+                "args": {"query": "How does PX work?", "targets": ["PX"], "k": 12},
+            },
+            {
+                "tool": "jira_epic",
+                "args": {},
+            },
+        ],
+        "output": {"summary": "", "gaps": [], "two_week_plan": [], "notes": ""},
+        "_meta": {},
+    }
+
+    def fake_register_all_tools() -> None:
+        return None
+
+    llm_calls: list[list[dict[str, str]]] = []
+
+    def fake_create_plan(task_prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
+        assert allowed_tools == ["rag_search"], allowed_tools
+        return copy.deepcopy(plan_template)
+
+    hit = RetrieveHit(text="PX knowledge", score=0.8, source="PX", chunk_id="chunk-px")
+
+    def fake_execute_plan(plan: dict[str, object], _: dict[str, object], **__: object) -> dict[str, object]:
+        assert [step.get("tool") for step in plan.get("steps", [])] == ["rag_search"]
+        return {
+            "artifacts": {
+                "step_1:rag_search": {
+                    "results": [hit],
+                    "fallback_message": None,
+                    "evidence": "[1] PX knowledge",
+                }
+            },
+            "output": plan.get("output", {}),
+        }
+
+    def fake_generate_chat_response(messages: list[dict[str, str]], temperature: float = 0.2, max_tokens: int | None = 700) -> str:
+        llm_calls.append(messages)
+        return "PX automates onboarding workflows."
+
+    monkeypatch.setattr("app.services.chat_orchestrator.agent_tools.register_all_tools", fake_register_all_tools)
+    monkeypatch.setattr("app.services.chat_orchestrator.create_plan", fake_create_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.generate_chat_response", fake_generate_chat_response)
+
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+    req = ChatQueryReq(prompt="How does PX onboarding work?", metadata=ChatMetadata(targets=["PX"]))
+
+    resp = orchestrator.handle(req)
+
+    assert llm_calls, "Expected LLM response to be generated"
+    assert all(step["tool"] == "rag_search" for step in resp.plan["steps"])
+    assert resp.artifacts.get("step_1:rag_search")
+
+
+def test_chat_orchestrator_enriches_plan_for_explicit_tool(
+    monkeypatch: pytest.MonkeyPatch,
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    plan_template = {
+        "steps": [
+            {
+                "tool": "rag_search",
+                "args": {"query": "", "targets": ["PX"], "k": 12},
+            },
+            {
+                "tool": "jira_epic",
+                "args": {},
+            },
+        ],
+        "output": {"summary": "Created Jira epic", "gaps": [], "two_week_plan": [], "notes": ""},
+        "_meta": {},
+    }
+
+    def fake_register_all_tools() -> None:
+        return None
+
+    captured_plan: dict[str, object] = {}
+
+    def fake_create_plan(task_prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
+        assert set(allowed_tools or []) == {"rag_search", "jira_epic"}
+        return copy.deepcopy(plan_template)
+
+    def fake_execute_plan(plan: dict[str, object], _: dict[str, object], **__: object) -> dict[str, object]:
+        captured_plan["plan"] = copy.deepcopy(plan)
+        return {
+            "artifacts": {
+                "step_1:rag_search": {"results": [], "fallback_message": None, "evidence": None},
+                "step_2:jira_epic": {"key": "PX-101", "url": "https://jira/pX-101"},
+            },
+            "output": plan.get("output", {}),
+        }
+
+    def fake_generate_chat_response(messages: list[dict[str, str]], temperature: float = 0.2, max_tokens: int | None = 700) -> str:
+        return "Created the Jira epic with the supplied details."
+
+    monkeypatch.setattr("app.services.chat_orchestrator.agent_tools.register_all_tools", fake_register_all_tools)
+    monkeypatch.setattr("app.services.chat_orchestrator.create_plan", fake_create_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.generate_chat_response", fake_generate_chat_response)
+
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+    req = ChatQueryReq(
+        prompt="Create a Jira epic in project PX summary='PX automation' description='Automate onboarding flows'",
+        metadata=ChatMetadata(targets=["PX"]),
+    )
+
+    resp = orchestrator.handle(req)
+
+    jira_step = next(step for step in resp.plan["steps"] if step["tool"] != "rag_search")
+    assert jira_step["args"]["project_key"] == "PX"
+    assert jira_step["args"]["summary"] == "PX automation"
+    assert jira_step["args"]["description"] == "Automate onboarding flows"
+    assert resp.plan["_meta"].get("project_key") == "PX"
+    assert captured_plan["plan"]["steps"][1]["args"]["project_key"] == "PX"
+    assert resp.artifacts["step_2:jira_epic"]["key"] == "PX-101"
+
+
+def test_chat_orchestrator_clarifies_missing_intent_fields_before_planning(
+    monkeypatch: pytest.MonkeyPatch,
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    def fake_register_all_tools() -> None:
+        return None
+
+    create_called = False
+
+    def fake_create_plan(task_prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
+        nonlocal create_called
+        create_called = True
+        return {}
+
+    def fake_execute_plan(plan: dict[str, object], _: dict[str, object], **__: object) -> dict[str, object]:
+        raise AssertionError("execute_plan should not be invoked when prompting for clarifications")
+
+    monkeypatch.setattr("app.services.chat_orchestrator.agent_tools.register_all_tools", fake_register_all_tools)
+    monkeypatch.setattr("app.services.chat_orchestrator.create_plan", fake_create_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
+
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+    req = ChatQueryReq(prompt="Can you create a Jira epic?", metadata=ChatMetadata(targets=["PX"]))
+
+    resp = orchestrator.handle(req)
+
+    assert create_called is False
+    assert resp.pending_fields == {"tool": "jira_epic", "missing": ["summary", "description"]}
+    assert "Jira epic" in resp.reply_md
+    assert resp.plan["_meta"].get("clarification_tool") == "jira_epic"
+
+
 def test_chat_orchestrator_prompts_for_missing_tool_fields(
     monkeypatch: pytest.MonkeyPatch,
     db_session,
@@ -495,7 +681,11 @@ def test_chat_orchestrator_prompts_for_missing_tool_fields(
     def fake_create_plan(task_prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
         return copy.deepcopy(plan_template)
 
-    def fake_execute_plan(plan: dict[str, object], user_claims: dict[str, object]) -> dict[str, object]:
+    def fake_execute_plan(
+        plan: dict[str, object],
+        user_claims: dict[str, object],
+        **__: object,
+    ) -> dict[str, object]:
         raise HTTPException(
             status_code=400,
             detail={
@@ -510,7 +700,10 @@ def test_chat_orchestrator_prompts_for_missing_tool_fields(
     monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
 
     orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
-    req = ChatQueryReq(prompt="create jira issue", metadata=ChatMetadata(targets=["PX"]))
+    req = ChatQueryReq(
+        prompt="create jira issue in project PX summary='Launch PX onboarding' description='Need story outline'",
+        metadata=ChatMetadata(targets=["PX"]),
+    )
 
     resp = orchestrator.handle(req)
 

@@ -55,7 +55,7 @@ def generate_onboarding(
     meta.setdefault("tenant_id", user_claims.get("tenant_id"))
     if settings.atlassian_space:
         meta.setdefault("space_key", settings.atlassian_space)
-    exec_res = _planner.execute_plan(plan, user_claims=user_claims)
+    exec_res = _planner.execute_plan(plan, user_claims=user_claims, db_session=db)
     if exec_res.get("output", {}).get("notes") == "fallback_heuristic_plan":
         logger.warning("Planner fallback engaged for onboarding; returning heuristic plan")
         return _fallback_onboarding_plan(dev_name, project_key, gaps_algo)

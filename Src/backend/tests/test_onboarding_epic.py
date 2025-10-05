@@ -69,7 +69,11 @@ def test_onboarding_epic_create_with_epic_name_allowed(
     project_id, developer_id = _seed_ids()
     captured_posts: list[dict[str, object]] = []
 
-    def _execute_plan(plan: dict[str, object], user_claims: dict[str, object]) -> dict[str, object]:
+    def _execute_plan(
+        plan: dict[str, object],
+        user_claims: dict[str, object],
+        **__: object,
+    ) -> dict[str, object]:
         plan_steps = plan.get("steps", [])
         artifacts: dict[str, object] = {}
         for index, step in enumerate(plan_steps, start=1):
@@ -121,7 +125,11 @@ def test_onboarding_epic_create_without_epic_name_allowed(
     project_id, developer_id = _seed_ids()
     captured_posts: list[dict[str, object]] = []
 
-    def _execute_plan(plan: dict[str, object], user_claims: dict[str, object]) -> dict[str, object]:
+    def _execute_plan(
+        plan: dict[str, object],
+        user_claims: dict[str, object],
+        **__: object,
+    ) -> dict[str, object]:
         artifacts: dict[str, object] = {}
         for index, step in enumerate(plan.get("steps", []), start=1):
             args = dict(step.get("args", {}))
@@ -172,7 +180,11 @@ def test_onboarding_epic_create_400_then_retry_without_field(
     project_id, developer_id = _seed_ids()
     captured_posts: list[dict[str, object]] = []
 
-    def _execute_plan(plan: dict[str, object], user_claims: dict[str, object]) -> dict[str, object]:
+    def _execute_plan(
+        plan: dict[str, object],
+        user_claims: dict[str, object],
+        **__: object,
+    ) -> dict[str, object]:
         artifacts: dict[str, object] = {}
         for index, step in enumerate(plan.get("steps", []), start=1):
             args = dict(step.get("args", {}))

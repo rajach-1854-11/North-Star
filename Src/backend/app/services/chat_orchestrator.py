@@ -22,6 +22,19 @@ from app.services import retrieval_diversity as diversity
 from app.services import chat_history
 
 _DEFAULT_TOOLS = ["rag_search", "jira_epic", "confluence_page", "staffing_recommend"]
+_ALLOWED_TOOL_NAMES = {"rag_search", "jira_epic", "confluence_page", "staffing_recommend"}
+_TOOL_ALIASES: Dict[str, set[str]] = {
+    "jira_epic": {"jira_epic", "jira", "jira_issue", "jira_ticket"},
+    "confluence_page": {"confluence_page", "confluence", "confluence_page_tool"},
+    "staffing_recommend": {"staffing_recommend", "staffing", "recommend_staff"},
+}
+
+_JIRA_TRIGGER = re.compile(r"\b(create|make|open|raise|file|log|submit)\b.*\b(jira|epic|story|bug|ticket|issue)\b", re.IGNORECASE)
+_CONFLUENCE_TRIGGER = re.compile(r"\b(create|make|publish|document|write)\b.*\bconfluence\b", re.IGNORECASE)
+_STAFFING_TRIGGER = re.compile(r"\b(which|who)\b.*\b(dev|developer)\b.*\b(best\s+(?:suited|fit)|should\s+work)\b", re.IGNORECASE)
+
+_PROJECT_PATTERN = re.compile(r"\b(?:project|for|in)\s+([A-Z][A-Z0-9_-]{1,30})\b")
+_TITLE_TITLED_PATTERN = re.compile(r"titled\s*['\"]([^'\"]+)['\"]", re.IGNORECASE)
 
 
 @dataclass
@@ -39,6 +52,22 @@ class RetrievalBatch:
     passes_gate: bool
     fallback_message: Optional[str]
     evidence: Optional[str]
+
+
+@dataclass
+class ToolIntent:
+    tool: Optional[str]
+    explicit: bool
+    inferred_project: Optional[str] = None
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    title: Optional[str] = None
+    space: Optional[str] = None
+    missing_fields: List[str] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.missing_fields is None:
+            self.missing_fields = []
 
 
 class ChatOrchestrator:
@@ -63,13 +92,227 @@ class ChatOrchestrator:
             else:
                 cls._tools_registered = True
 
+    # ------------------------------------------------------------------
+    # Intent detection & gating
+
+    def _detect_tool_intent(self, req: ChatQueryReq) -> ToolIntent:
+        prompt = (req.prompt or "").strip()
+        metadata = req.metadata or ChatMetadata()
+        lowered = prompt.lower()
+
+        explicit = False
+        tool: Optional[str] = None
+
+        if _JIRA_TRIGGER.search(lowered):
+            tool = "jira_epic"
+            explicit = True
+        elif _CONFLUENCE_TRIGGER.search(lowered):
+            tool = "confluence_page"
+            explicit = True
+        elif _STAFFING_TRIGGER.search(lowered):
+            tool = "staffing_recommend"
+            explicit = True
+
+        # Fallback to allowed_tools hint when not explicit
+        allowed_tools = req.allowed_tools or []
+        if not explicit and allowed_tools:
+            normalised_allowed = self._normalise_allowed_tools(allowed_tools)
+            for candidate, aliases in _TOOL_ALIASES.items():
+                if candidate in normalised_allowed:
+                    tool = candidate
+                    break
+
+        if tool is None:
+            return ToolIntent(tool=None, explicit=False, missing_fields=[])
+
+        normalised_allowed = self._normalise_allowed_tools(req.allowed_tools or [])
+        allowed = self._tool_allowed_by_consent(tool, normalised_allowed, explicit)
+        if not allowed:
+            return ToolIntent(tool=None, explicit=False, missing_fields=[])
+
+        intent = ToolIntent(tool=tool, explicit=explicit)
+
+        project = self._extract_project_key(prompt) or self._extract_project_from_targets(metadata)
+        if tool == "jira_epic":
+            summary = self._extract_named_value(prompt, "summary")
+            description = self._extract_named_value(prompt, "description")
+            intent.inferred_project = project
+            intent.summary = summary
+            intent.description = description
+            missing = []
+            if not project:
+                missing.append("project_key")
+            if not summary:
+                missing.append("summary")
+            if not description:
+                missing.append("description")
+            intent.missing_fields = missing
+        elif tool == "confluence_page":
+            title = self._extract_title(prompt)
+            space = self._extract_space(prompt) or metadata.additional.get("space_key")
+            intent.title = title
+            intent.space = space
+            missing = []
+            if not space:
+                missing.append("space")
+            if not title:
+                missing.append("title")
+            intent.missing_fields = missing
+        elif tool == "staffing_recommend":
+            intent.inferred_project = project
+            missing = []
+            if not project:
+                missing.append("project_key")
+            intent.missing_fields = missing
+
+        return intent
+
+    def _normalise_allowed_tools(self, allowed_tools: List[str]) -> Dict[str, str]:
+        mapping: Dict[str, str] = {}
+        for tool in allowed_tools:
+            canonical = str(tool or "").strip().lower()
+            if not canonical:
+                continue
+            mapping[canonical] = canonical
+            for target, aliases in _TOOL_ALIASES.items():
+                if canonical in aliases:
+                    mapping[target] = target
+        return mapping
+
+    def _tool_allowed_by_consent(self, tool: str, allowed_mapping: Dict[str, str], explicit: bool) -> bool:
+        if explicit:
+            return True
+        if not allowed_mapping:
+            return False
+        return tool in allowed_mapping
+
+    def _extract_project_from_targets(self, metadata: ChatMetadata) -> Optional[str]:
+        targets = metadata.targets or []
+        if len(targets) == 1:
+            candidate = str(targets[0]).strip()
+            return candidate or None
+        return None
+
+    def _extract_project_key(self, text: str) -> Optional[str]:
+        match = _PROJECT_PATTERN.search(text)
+        if match:
+            return match.group(1).upper()
+        return None
+
+    def _extract_named_value(self, text: str, name: str) -> Optional[str]:
+        pattern = re.compile(rf"{name}\s*(?:=|:)\s*['\"]([^'\"]+)['\"]", re.IGNORECASE)
+        match = pattern.search(text)
+        if match:
+            return match.group(1).strip()
+        return None
+
+    def _extract_title(self, text: str) -> Optional[str]:
+        match = _TITLE_TITLED_PATTERN.search(text)
+        if match:
+            return match.group(1).strip()
+        pattern = re.compile(r"title\s*(?:=|:)\s*['\"]([^'\"]+)['\"]", re.IGNORECASE)
+        match = pattern.search(text)
+        if match:
+            return match.group(1).strip()
+        return None
+
+    def _extract_space(self, text: str) -> Optional[str]:
+        pattern = re.compile(r"space\s*(?:=|:)\s*['\"]?([A-Z][A-Z0-9_-]{1,30})", re.IGNORECASE)
+        match = pattern.search(text)
+        if match:
+            return match.group(1).strip().upper()
+        return None
+
+    def _build_clarification_message(self, tool: str, missing_fields: Sequence[str]) -> str:
+        if tool == "jira_epic":
+            friendly = [
+                ("project_key", "project key"),
+                ("summary", "summary"),
+                ("description", "description"),
+            ]
+            missing = [label for key, label in friendly if key in missing_fields]
+            listing = ", ".join(missing)
+            if not missing:
+                listing = "project key, summary, description"
+                missing = [label for _, label in friendly]
+            ask = self._render_follow_up_question(missing)
+            return f"To create a Jira epic, I need: {listing}. {ask}"
+        if tool == "confluence_page":
+            friendly = {
+                "space": "space key",
+                "title": "title",
+            }
+            missing = [friendly.get(field, field) for field in missing_fields] or list(friendly.values())
+            listing = ", ".join(missing)
+            ask = self._render_follow_up_question(missing)
+            return f"To publish a Confluence page, I need: {listing}. {ask}"
+        if tool == "staffing_recommend":
+            ask = self._render_follow_up_question(["project"], template="Which {item} should I evaluate?")
+            return "To recommend staffing, I need a project key. " + ask
+        # default
+        ask = self._render_follow_up_question(["details"])
+        return f"I need a bit more information before running {tool}. {ask}"
+
+    def _render_follow_up_question(self, items: Sequence[str], *, template: Optional[str] = None) -> str:
+        clean = [item.replace("_", " ") for item in items if item]
+        if not clean:
+            clean = ["details"]
+        if template:
+            return template.format(item=clean[0])
+        if len(clean) == 1:
+            return f"What should I use for the {clean[0]}?"
+        if len(clean) == 2:
+            return f"Which {clean[0]} should I use, and what {clean[1]} should I set?"
+        head = ", ".join(clean[:-1])
+        return f"Could you share the {head}, and the {clean[-1]}?"
+
     def handle(self, req: ChatQueryReq) -> ChatResp:
         """Entry point invoked by the route handler."""
 
         thread, resolved_req = self._prepare_thread_and_history(req)
-        plan = self._build_plan(resolved_req)
+        intent = self._detect_tool_intent(resolved_req)
+
+        if intent.tool and intent.explicit and intent.missing_fields:
+            clarification = self._build_clarification_message(intent.tool, intent.missing_fields)
+            plan_payload = {"steps": [], "output": {}, "_meta": {"clarification_tool": intent.tool}}
+            chat_response = ChatResp(
+                reply_md=clarification,
+                plan=plan_payload,
+                artifacts={},
+                output={},
+                actions=[],
+                sources=[],
+                two_week_plan=[],
+                pending_fields={"tool": intent.tool, "missing": intent.missing_fields},
+                message=clarification,
+                thread_id=thread.id,
+                thread_title=thread.title,
+            )
+
+            self._persist_turn(
+                thread=thread,
+                user_prompt=req.prompt,
+                reply_md=clarification,
+                response_payload={
+                    "plan": plan_payload,
+                    "artifacts": {},
+                    "output": {},
+                    "actions": [],
+                    "sources": [],
+                },
+                req=req,
+            )
+
+            return chat_response
+
+        plan, allowed_tools = self._build_plan(resolved_req, intent)
         try:
-            execution = execute_plan(copy.deepcopy(plan), self.user_claims)
+            execution = execute_plan(
+                copy.deepcopy(plan),
+                self.user_claims,
+                allowed_tools=allowed_tools,
+                db_session=self.db,
+            )
         except HTTPException as exc:
             handled = self._handle_execution_exception(exc, thread, resolved_req, plan)
             if handled is not None:
@@ -186,38 +429,167 @@ class ChatOrchestrator:
     # ------------------------------------------------------------------
     # Planning helpers
 
-    def _build_plan(self, req: ChatQueryReq) -> Dict[str, Any]:
+    def _build_plan(self, req: ChatQueryReq, intent: ToolIntent) -> tuple[Dict[str, Any], List[str]]:
         """Compose the planner request and guarantee minimum retrieval coverage."""
 
-        allowed_tools = req.allowed_tools or list_tools() or list(_DEFAULT_TOOLS)
+        allowed_plan_tools = self._compute_allowed_tools(req, intent)
         prompt = self._compose_task_prompt(req)
-        plan = create_plan(prompt, allowed_tools=allowed_tools)
+        plan = create_plan(prompt, allowed_tools=allowed_plan_tools)
         plan.setdefault("steps", [])
         plan.setdefault("output", {})
         plan.setdefault("_meta", {})
 
         meta = plan["_meta"]
-        meta["allowed_tools_provided"] = req.allowed_tools is not None
-        if req.allowed_tools is not None:
-            normalised: List[str] = []
-            seen: set[str] = set()
-            for tool in req.allowed_tools:
-                lowered = str(tool or "").strip().lower()
-                if not lowered or lowered in seen:
-                    continue
-                seen.add(lowered)
-                normalised.append(lowered)
-            meta["allowed_tools"] = normalised
         meta.update(
             {
+                "allowed_tools_provided": req.allowed_tools is not None,
                 "requested_autonomy": req.autonomy,
                 "history_turns": len(req.history or []),
+                "intent_tool": intent.tool,
+                "intent_explicit": intent.explicit,
             }
         )
 
+        if req.allowed_tools is not None:
+            meta["allowed_tools_user"] = [
+                str(tool or "").strip().lower()
+                for tool in req.allowed_tools
+                if str(tool or "").strip()
+            ]
+
+        meta["allowed_tools_effective"] = allowed_plan_tools
+        if intent.inferred_project:
+            meta.setdefault("intent_project_key", intent.inferred_project)
+            meta.setdefault("project_key", intent.inferred_project)
+        if intent.summary:
+            meta.setdefault("intent_summary", intent.summary)
+        if intent.description:
+            meta.setdefault("intent_description", intent.description)
+        if intent.title:
+            meta.setdefault("intent_title", intent.title)
+        if intent.space:
+            meta.setdefault("space_key", intent.space)
+
         targets, include_rosetta, known_projects = self._derive_retrieval_targets(req)
         self._ensure_rag_steps(req, plan, targets, include_rosetta, known_projects)
-        return plan
+        self._ensure_intent_step(plan, intent, allowed_plan_tools)
+        self._apply_intent_enrichment(plan, intent)
+        plan["steps"] = [
+            step
+            for step in plan.get("steps", [])
+            if self._step_allowed(step.get("tool"), allowed_plan_tools)
+        ]
+        return plan, allowed_plan_tools
+
+    def _compute_allowed_tools(self, req: ChatQueryReq, intent: ToolIntent) -> List[str]:
+        available_tools = list_tools() or list(_DEFAULT_TOOLS)
+        available_set = {tool for tool in available_tools if tool}
+
+        allowed: List[str] = []
+
+        def add(tool_name: Optional[str]) -> None:
+            if not tool_name:
+                return
+            if tool_name not in available_set:
+                return
+            if tool_name not in allowed:
+                allowed.append(tool_name)
+
+        add("rag_search")
+
+        consent_mapping = self._normalise_allowed_tools(req.allowed_tools or [])
+
+        if intent.tool:
+            add(intent.tool)
+
+        for canonical in consent_mapping.keys():
+            if canonical in _ALLOWED_TOOL_NAMES:
+                add(canonical)
+
+        if not allowed:
+            allowed.extend(available_tools)
+
+        return allowed
+
+    def _step_allowed(self, tool_name: Optional[str], allowed_tools: Sequence[str]) -> bool:
+        if not tool_name:
+            return False
+        if tool_name in allowed_tools:
+            return True
+        for canonical, aliases in _TOOL_ALIASES.items():
+            if tool_name in aliases and canonical in allowed_tools:
+                return True
+        return False
+
+    def _canonical_tool_name(self, tool_name: Optional[str]) -> Optional[str]:
+        if not tool_name:
+            return None
+        lowered = str(tool_name).strip().lower()
+        if not lowered:
+            return None
+        if lowered in _ALLOWED_TOOL_NAMES:
+            return lowered
+        for canonical, aliases in _TOOL_ALIASES.items():
+            if lowered in aliases:
+                return canonical
+        return lowered
+
+    def _ensure_intent_step(
+        self,
+        plan: Dict[str, Any],
+        intent: ToolIntent,
+        allowed_tools: Sequence[str],
+    ) -> None:
+        if not intent.tool:
+            return
+        canonical = intent.tool
+        if not self._step_allowed(canonical, allowed_tools):
+            return
+        steps = plan.setdefault("steps", [])
+        for step in steps:
+            if self._canonical_tool_name(step.get("tool")) == canonical:
+                return
+        args = self._intent_default_args(intent)
+        steps.append({"tool": canonical, "args": copy.deepcopy(args)})
+
+    def _intent_default_args(self, intent: ToolIntent) -> Dict[str, Any]:
+        if intent.tool == "jira_epic":
+            base = {
+                "project_key": intent.inferred_project,
+                "summary": intent.summary,
+                "description": intent.description,
+            }
+        elif intent.tool == "confluence_page":
+            base = {
+                "space": intent.space,
+                "space_key": intent.space,
+                "title": intent.title,
+            }
+        elif intent.tool == "staffing_recommend":
+            base = {
+                "project_key": intent.inferred_project,
+                "include_full": True,
+            }
+        else:
+            base = {}
+        return {key: value for key, value in base.items() if value is not None}
+
+    def _apply_intent_enrichment(self, plan: Dict[str, Any], intent: ToolIntent) -> None:
+        if not intent.tool:
+            return
+        canonical = intent.tool
+        update_args = self._intent_default_args(intent)
+        if not update_args and canonical != "staffing_recommend":
+            return
+        for step in plan.get("steps", []):
+            if self._canonical_tool_name(step.get("tool")) != canonical:
+                continue
+            args = step.setdefault("args", {}) or {}
+            for key, value in update_args.items():
+                args.setdefault(key, copy.deepcopy(value) if isinstance(value, (dict, list)) else value)
+            if canonical == "staffing_recommend":
+                args.setdefault("include_full", True)
+            step["args"] = args
 
     def _prepare_thread_and_history(self, req: ChatQueryReq) -> tuple[m.ChatThread, ChatQueryReq]:
         """Ensure a thread exists and merge persisted history into the request."""

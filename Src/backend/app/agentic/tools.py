@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Generator
+from contextlib import contextmanager
 
 
 from fastapi import HTTPException
 from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from app.adapters import confluence_adapter, jira_adapter
 from app.application.policy_bus import enforce
@@ -35,6 +37,19 @@ def _validation_error_to_http(exc: ValidationError) -> HTTPException:
     )
 
 
+@contextmanager
+def _borrow_session(db_session: Session | None = None) -> Generator[Session, None, None]:
+    if db_session is not None:
+        yield db_session
+        return
+
+    session = deps.SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
 def rag_search_tool(
     *,
     user_claims: Dict[str, Any],
@@ -45,6 +60,7 @@ def rag_search_tool(
     limit: int | None = None,
     include_rosetta: bool = False,
     known_projects: List[str] | None = None,
+    db_session: Session | None = None,
 ) -> Dict[str, Any]:
     """Expose the retrieval service as a planner tool."""
     tenant_id = user_claims.get("tenant_id")
@@ -74,6 +90,7 @@ def rag_search_tool(
         strategy=strategy,
         include_rosetta=include_rosetta,
         known_projects=inferred_known,
+        db=db_session,
     )
     return payload
 
@@ -91,6 +108,7 @@ def jira_epic_tool(
     epic_name_field_id: str | None = None,
     parent_issue_key: str | None = None,
     labels: List[str] | None = None,
+    db_session: Session | None = None,
     **_: Any,
 ) -> Dict[str, Any]:
     role = user_claims.get("role", "Dev")
@@ -199,7 +217,7 @@ def jira_epic_tool(
         except (TypeError, ValueError):
             db_project_id = None
         else:
-            with deps.SessionLocal() as session:
+            with _borrow_session(db_session) as session:
                 project_row = session.get(m.Project, db_project_id)
                 if project_row:
                     resolved_key = project_row.key
@@ -261,8 +279,10 @@ def confluence_page_tool(
     title: str,
     body_html: str | None = None,
     evidence: str | None = None,
+    db_session: Session | None = None,
     **_: Any,
 ) -> Dict[str, Any]:
+    _ = db_session  # shared session kept for interface parity
     role = user_claims.get("role", "Dev")
     enforce("publish_artifact", role)
 
@@ -422,6 +442,7 @@ def staffing_recommend_tool(
     project_id: int | str | None = None,
     top_k: int = 3,
     include_full: bool = False,
+    db_session: Session | None = None,
 ) -> Dict[str, Any]:
     role = user_claims.get("role", "Dev")
     enforce("staffing_recommend", role)
@@ -434,7 +455,7 @@ def staffing_recommend_tool(
     resolved_project_id: int | None = None
     resolved_project_key: str | None = None
 
-    with deps.SessionLocal() as session:
+    with _borrow_session(db_session) as session:
         if project_id is not None:
             try:
                 resolved_project_id = int(project_id)

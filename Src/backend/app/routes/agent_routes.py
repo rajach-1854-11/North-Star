@@ -6,7 +6,9 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
 
+from app import deps
 from app.deps import require_role
 from app.domain.schemas import AgentQueryReq, AgentQueryResp
 from app.ports.planner import create_plan, execute_plan
@@ -18,6 +20,7 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 def agent_query(
     req: AgentQueryReq,
     user: Dict[str, Any] = Depends(require_role(("Admin", "PO", "BA", "Dev"))),
+    db: Session = Depends(deps.get_db),
 ) -> AgentQueryResp:
     """Generate and execute an agentic plan for the provided prompt."""
 
@@ -36,7 +39,7 @@ def agent_query(
                 for key, value in override_args.items():
                     if value is not None:
                         step_args[key] = value
-        result = execute_plan(plan, user_claims=user)
+        result = execute_plan(plan, user_claims=user, db_session=db)
     except HTTPException as exc:
         detail = exc.detail
         if isinstance(detail, dict) and detail.get("code"):

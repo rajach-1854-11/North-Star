@@ -1,2 +1,2 @@
-id,name
-tenant1,Demo
+id,key,name
+1,tenant1,Tenant One

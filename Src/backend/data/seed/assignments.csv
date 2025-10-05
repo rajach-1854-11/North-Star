@@ -1,2 +1,2 @@
-username,project_key,role,status
-dev_alex,PX,Engineer,active
+id,developer_id,project_id,role,start_date,active
+1,1,1,DEV,2025-09-15,True

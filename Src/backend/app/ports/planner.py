@@ -9,6 +9,7 @@ import html
 import httpx
 import re
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 from app.config import settings
 from app.adapters.cerebras_planner import chat_json as cerebras_chat_json
 from app.adapters.openai_planner import chat_json as openai_chat_json
@@ -575,6 +576,7 @@ def execute_plan(
     user_claims: Dict[str, Any],
     *,
     allowed_tools: Sequence[str] | None = None,
+    db_session: Session | None = None,
 ) -> Dict[str, Any]:
     """Execute a plan against registered tools while enforcing RBAC and consent."""
 
@@ -647,7 +649,7 @@ def execute_plan(
             tool_claims["chat_context"] = context_items
 
         try:
-            res = _TOOL_REGISTRY[tool](user_claims=tool_claims, **args)
+            res = _TOOL_REGISTRY[tool](user_claims=tool_claims, db_session=db_session, **args)
             artifacts[artifact_key] = res
             if isinstance(res, dict):
                 ctx["last"] = res
