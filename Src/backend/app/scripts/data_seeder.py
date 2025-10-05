@@ -285,7 +285,7 @@ def _seed_projects(seeder: Seeder, rows: Sequence[ProjectRow], file_name: str) -
     return stats
 
 
-_ALLOWED_ROLES = {"PO", "BA", "Dev"}
+_ALLOWED_ROLES = {"Admin", "PO", "BA", "Dev"}
 
 
 def _seed_users(seeder: Seeder, rows: Sequence[UserRow], file_name: str) -> FileStats:

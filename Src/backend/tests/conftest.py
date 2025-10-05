@@ -59,6 +59,8 @@ def client() -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture
-def db_session() -> Generator[Session, None, None]:
+def db_session(client: TestClient) -> Generator[Session, None, None]:
+    """Provide a database session scoped to the in-memory test engine."""
+
     with deps.SessionLocal() as session:
         yield session

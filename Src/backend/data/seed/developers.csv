@@ -1,2 +1,5 @@
-id,tenant_id,user_id,name,email,title
-1,1,3,Alex Kumar,alex.dev@tenant1.example,Software Engineer
+username,display_name
+dev_alex,Alex Kumar
+dev_bianca,Bianca Lopez
+dev_riley,Riley Chen
+dev_samir,Samir Patel
