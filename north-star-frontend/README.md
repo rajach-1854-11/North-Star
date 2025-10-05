@@ -19,6 +19,7 @@ npm i
 # 3) Set API URL
 cp .env.local.example .env.local
 # edit .env.local to point NEXT_PUBLIC_API_BASE to your FastAPI (e.g., http://localhost:8000)
+# (optional) set NEXT_PUBLIC_INTELLISTAFF_PATH if your candidate endpoint differs from /intellistaff/candidates
 
 # 4) Start dev server
 npm run dev

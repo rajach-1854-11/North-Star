@@ -7,6 +7,34 @@ if (!API_BASE) {
   throw new Error("NEXT_PUBLIC_API_BASE is not defined. Set it in your environment (e.g. .env.local).");
 }
 
+const INTELLISTAFF_PATH = process.env.NEXT_PUBLIC_INTELLISTAFF_PATH ?? "/intellistaff/candidates";
+
+export const Candidate = z.object({
+  id: z.number(),
+  name: z.string(),
+  fit: z.number(),
+  skills: z.array(z.string())
+});
+
+const CandidateArray = z.array(Candidate);
+const CandidateEnvelope = z.object({
+  candidates: z.array(Candidate)
+});
+
+export type CandidateType = z.infer<typeof Candidate>;
+
+function parseCandidates(payload: unknown): CandidateType[] {
+  const direct = CandidateArray.safeParse(payload);
+  if (direct.success) {
+    return direct.data;
+  }
+  const enveloped = CandidateEnvelope.safeParse(payload);
+  if (enveloped.success) {
+    return enveloped.data.candidates;
+  }
+  throw new Error("Unexpected candidate payload from API");
+}
+
 export const TokenResp = z.object({
   access_token: z.string(),
   token_type: z.literal("bearer").optional(),
@@ -34,6 +62,27 @@ export const ProjectsResp = z.array(z.object({
 }));
 
 export const api = {
+  async listCandidates(params: { project?: string; skill?: string; search?: string } = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.project) searchParams.set("project", params.project);
+    if (params.skill) searchParams.set("skill", params.skill);
+    if (params.search) searchParams.set("search", params.search);
+
+    try {
+      const response = await ky.get(new URL(INTELLISTAFF_PATH, API_BASE), {
+        searchParams,
+        timeout: 10000
+      }).json();
+      return parseCandidates(response);
+    } catch (err) {
+      if (err instanceof HTTPError) {
+        const data = await err.response.json().catch(() => null);
+        const detail = data?.detail || data?.message || err.response.statusText;
+        throw new Error(typeof detail === "string" ? detail : "Unable to load candidates");
+      }
+      throw err;
+    }
+  },
   async login(username: string, password: string) {
     const form = new URLSearchParams();
     form.set("grant_type", "password");
