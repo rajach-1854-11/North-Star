@@ -1,0 +1,245 @@
+{
+  "tenants": [
+    {
+      "id": 1,
+      "key": "tenant1",
+      "name": "Tenant One"
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "username": "po_admin",
+      "email": "po_admin@tenant1.example",
+      "full_name": "Priya Oberoi",
+      "role": "PO",
+      "tenant_id": 1,
+      "password_plain": "x",
+      "password_bcrypt": "$2b$12$lywv18iPx5vlw/Q02cIs1uEAubAxpWK1vGKK6Vk.sEHmU2TSWOh/e"
+    },
+    {
+      "id": 2,
+      "username": "ba_nancy",
+      "email": "nancy.ba@tenant1.example",
+      "full_name": "Nancy Shah",
+      "role": "BA",
+      "tenant_id": 1,
+      "password_plain": "x",
+      "password_bcrypt": "$2b$12$mrH/RlTkDG2WFJHFIyapWewDizG3Yab7fDYvDgUMKuL7Yjme0HMhu"
+    },
+    {
+      "id": 3,
+      "username": "dev_alex",
+      "email": "alex.dev@tenant1.example",
+      "full_name": "Alex Kumar",
+      "role": "DEV",
+      "tenant_id": 1,
+      "password_plain": "x",
+      "password_bcrypt": "$2b$12$14/LTC5ANUTNMbmBB3K0KO7npWRIRk15ZQctd7gTH7GBG0b2SB36K"
+    }
+  ],
+  "projects": [
+    {
+      "id": 1,
+      "tenant_id": 1,
+      "key": "PX",
+      "name": "Realtime Pricing",
+      "description": "Low-latency price computation service with Qdrant-powered retrieval and Redis caching."
+    },
+    {
+      "id": 2,
+      "tenant_id": 1,
+      "key": "PB",
+      "name": "Billing Calc",
+      "description": "Batch billing calculator with strong RBAC and Postgres-first design."
+    }
+  ],
+  "developers": [
+    {
+      "id": 1,
+      "tenant_id": 1,
+      "user_id": 3,
+      "name": "Alex Kumar",
+      "email": "alex.dev@tenant1.example",
+      "title": "Software Engineer"
+    }
+  ],
+  "skills": [
+    {
+      "id": 1,
+      "key": "python",
+      "name": "Python"
+    },
+    {
+      "id": 2,
+      "key": "fastapi",
+      "name": "FastAPI"
+    },
+    {
+      "id": 3,
+      "key": "postgres",
+      "name": "PostgreSQL"
+    },
+    {
+      "id": 4,
+      "key": "redis",
+      "name": "Redis"
+    },
+    {
+      "id": 5,
+      "key": "qdrant",
+      "name": "Qdrant"
+    },
+    {
+      "id": 6,
+      "key": "rbac",
+      "name": "RBAC"
+    },
+    {
+      "id": 7,
+      "key": "oauth2",
+      "name": "OAuth2 / JWT"
+    },
+    {
+      "id": 8,
+      "key": "jira",
+      "name": "Jira"
+    },
+    {
+      "id": 9,
+      "key": "confluence",
+      "name": "Confluence"
+    },
+    {
+      "id": 10,
+      "key": "docker",
+      "name": "Docker"
+    },
+    {
+      "id": 11,
+      "key": "gha",
+      "name": "GitHub Actions"
+    },
+    {
+      "id": 12,
+      "key": "typescript",
+      "name": "TypeScript"
+    }
+  ],
+  "project_skills": [
+    {
+      "id": 1,
+      "project_id": 1,
+      "skill_id": 1,
+      "importance": 5
+    },
+    {
+      "id": 2,
+      "project_id": 1,
+      "skill_id": 2,
+      "importance": 5
+    },
+    {
+      "id": 3,
+      "project_id": 1,
+      "skill_id": 4,
+      "importance": 5
+    },
+    {
+      "id": 4,
+      "project_id": 1,
+      "skill_id": 5,
+      "importance": 5
+    },
+    {
+      "id": 5,
+      "project_id": 1,
+      "skill_id": 7,
+      "importance": 4
+    },
+    {
+      "id": 6,
+      "project_id": 1,
+      "skill_id": 6,
+      "importance": 3
+    },
+    {
+      "id": 7,
+      "project_id": 2,
+      "skill_id": 1,
+      "importance": 4
+    },
+    {
+      "id": 8,
+      "project_id": 2,
+      "skill_id": 3,
+      "importance": 5
+    },
+    {
+      "id": 9,
+      "project_id": 2,
+      "skill_id": 6,
+      "importance": 5
+    },
+    {
+      "id": 10,
+      "project_id": 2,
+      "skill_id": 7,
+      "importance": 4
+    },
+    {
+      "id": 11,
+      "project_id": 2,
+      "skill_id": 10,
+      "importance": 3
+    }
+  ],
+  "developer_skills": [
+    {
+      "id": 1,
+      "developer_id": 1,
+      "skill_id": 1,
+      "level": 5
+    },
+    {
+      "id": 2,
+      "developer_id": 1,
+      "skill_id": 2,
+      "level": 4
+    },
+    {
+      "id": 3,
+      "developer_id": 1,
+      "skill_id": 4,
+      "level": 4
+    },
+    {
+      "id": 4,
+      "developer_id": 1,
+      "skill_id": 5,
+      "level": 3
+    },
+    {
+      "id": 5,
+      "developer_id": 1,
+      "skill_id": 6,
+      "level": 3
+    },
+    {
+      "id": 6,
+      "developer_id": 1,
+      "skill_id": 7,
+      "level": 3
+    }
+  ],
+  "assignments": [
+    {
+      "id": 1,
+      "developer_id": 1,
+      "project_id": 1,
+      "role": "DEV",
+      "start_date": "2025-09-15",
+      "active": true
+    }
+  ]
+}
