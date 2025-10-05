@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+
 from fastapi import HTTPException
 from loguru import logger
 from pydantic import ValidationError
+from sqlalchemy import func
 
 from app.adapters import confluence_adapter, jira_adapter
 from app.application.policy_bus import enforce
@@ -15,8 +17,11 @@ import app.deps as deps
 from app.domain.errors import ExternalServiceError
 from app.domain import models as m
 from app.ports.planner import register_tool
+from app.ports.staffing import recommend_staff as recommend_staff_port
 from app.schemas.publish import PublishConfluenceRequest, PublishJiraRequest
 from worker.handlers.evidence_builder import to_confluence_html
+
+from .utility import local_extract_for_fields, validate_tool_args
 
 
 def _validation_error_to_http(exc: ValidationError) -> HTTPException:
@@ -38,6 +43,8 @@ def rag_search_tool(
     k: int = 12,
     strategy: str = "qdrant",
     limit: int | None = None,
+    include_rosetta: bool = False,
+    known_projects: List[str] | None = None,
 ) -> Dict[str, Any]:
     """Expose the retrieval service as a planner tool."""
     tenant_id = user_claims.get("tenant_id")
@@ -46,16 +53,29 @@ def rag_search_tool(
 
     from app.ports import retriever as retriever_port
 
+    accessible_projects = [
+        project
+        for project in user_claims.get("accessible_projects", [])
+        if isinstance(project, str) and project
+    ]
+    default_targets = [project for project in accessible_projects if project.lower() != "global"]
+    if "global" in {project.lower() for project in accessible_projects}:
+        default_targets.append("global")
+
+    inferred_known = known_projects or default_targets or accessible_projects
+
+    desired_k = max(limit or 0, k or 0, 40)
     payload = retriever_port.rag_search(
         tenant_id=tenant_id,
         user_claims=user_claims,
         query=query,
-        targets=targets or ["global"],
-        k=k,
+        targets=targets or default_targets or ["global"],
+        k=desired_k,
         strategy=strategy,
+        include_rosetta=include_rosetta,
+        known_projects=inferred_known,
     )
     return payload
-
 
 def jira_epic_tool(
     *,
@@ -76,6 +96,13 @@ def jira_epic_tool(
     role = user_claims.get("role", "Dev")
     enforce("publish_artifact", role)
 
+    allowed_list = user_claims.get("allowed_tools")
+    allowed_set = {str(tool).lower() for tool in allowed_list or [] if tool}
+    jira_allowed = allowed_list is None or "jira" in allowed_set
+    llm_allowed = allowed_list is not None and "llm" in allowed_set
+
+    context_items: List[Dict[str, Any]] = user_claims.get("chat_context", [])  # type: ignore[assignment]
+
     if not settings.atlassian_base_url or not settings.atlassian_email or not settings.atlassian_api_token:
         raise HTTPException(
             status_code=502,
@@ -85,13 +112,77 @@ def jira_epic_tool(
             },
         )
 
+    summary_value = (summary or "").strip()
+    description_value = (description_text or description or "").strip()
+
+    validation = validate_tool_args(
+        "jira_epic",
+        {"summary": summary_value, "description": description_value, "description_text": description_value},
+    )
+
+    if not validation["ok"]:
+        suggestions = local_extract_for_fields(context_items, validation["missing"])
+        if not jira_allowed:
+            reply_lines = [
+                f"⚠️ Jira creation blocked: missing required fields: {', '.join(validation['missing'])}.",
+                "Suggested action:",
+                "- Provide these fields explicitly in your request, or",
+                "- Re-run with allowed_tools including 'jira' and optionally 'llm' for auto-generation.",
+            ]
+            if suggestions:
+                reply_lines.append("Auto-suggestions:")
+                for field, value in suggestions.items():
+                    reply_lines.append(f"- {field}: \"{value}\"")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "TOOL_ARGS_INVALID",
+                    "message": "Jira issue requires additional fields",
+                    "details": {"missing": validation["missing"], "suggestions": suggestions},
+                    "reply_md": "\n".join(reply_lines),
+                },
+            )
+
+        autofill = suggestions.copy()
+        if llm_allowed:
+            for key, value in list(autofill.items()):
+                autofill[key] = f"{value} (auto-generated)"
+
+        summary_value = summary_value or autofill.get("summary", "")
+        description_value = description_value or autofill.get("description_text") or autofill.get("description", "")
+
+        validation = validate_tool_args(
+            "jira_epic",
+            {"summary": summary_value, "description": description_value, "description_text": description_value},
+        )
+        if not validation["ok"]:
+            reply_lines = [
+                f"⚠️ Jira creation blocked: missing required fields: {', '.join(validation['missing'])}.",
+                "Suggested action:",
+                "- Provide the missing fields directly, or",
+                "- Allow tools ['jira','llm'] so the agent can auto-generate them.",
+            ]
+            if suggestions:
+                reply_lines.append("Auto-suggestions:")
+                for field, value in suggestions.items():
+                    reply_lines.append(f"- {field}: \"{value}\"")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "TOOL_ARGS_INVALID",
+                    "message": "Jira issue requires additional fields",
+                    "details": {"missing": validation["missing"], "suggestions": suggestions},
+                    "reply_md": "\n".join(reply_lines),
+                },
+            )
+
     try:
         request = PublishJiraRequest(
             project_key=project_key,
             project_id=project_id,
             issue_type=issue_type or "Epic",
-            summary=summary,
-            description_text=description_text or description,
+            summary=summary_value,
+            description_text=description_value or description,
             epic_name=epic_name,
             parent_issue_key=parent_issue_key,
         )
@@ -148,6 +239,7 @@ def jira_epic_tool(
             epic_name_field_id=epic_name_field_id,
             project_id=request.project_id,
             project_key=request.project_key,
+            allow_external=jira_allowed,
         )
         logger.info(
             "publish_artifact:jira_epic",
@@ -174,6 +266,12 @@ def confluence_page_tool(
     role = user_claims.get("role", "Dev")
     enforce("publish_artifact", role)
 
+    allowed_list = user_claims.get("allowed_tools")
+    allowed_set = {str(tool).lower() for tool in allowed_list or [] if tool}
+    confluence_allowed = allowed_list is None or "confluence" in allowed_set
+    llm_allowed = allowed_list is not None and "llm" in allowed_set
+    context_items: List[Dict[str, Any]] = user_claims.get("chat_context", [])  # type: ignore[assignment]
+
     if not settings.atlassian_base_url or not settings.atlassian_email or not settings.atlassian_api_token:
         raise HTTPException(
             status_code=502,
@@ -191,12 +289,68 @@ def confluence_page_tool(
         resolved_space_key = default_space.get("key")
         resolved_space_id = default_space.get("id")
 
+    title_value = (title or "").strip()
+    body_value = (body_html or "").strip()
+
+    validation = validate_tool_args("confluence_page", {"title": title_value, "body_html": body_value})
+    if not validation["ok"]:
+        suggestions = local_extract_for_fields(context_items, validation["missing"])
+        if not confluence_allowed:
+            reply_lines = [
+                f"⚠️ Confluence publish blocked: missing required fields: {', '.join(validation['missing'])}.",
+                "Suggested action:",
+                "- Provide the missing fields explicitly, or",
+                "- Re-run with allowed_tools including 'confluence' and optionally 'llm'.",
+            ]
+            if suggestions:
+                reply_lines.append("Auto-suggestions:")
+                for field, value in suggestions.items():
+                    reply_lines.append(f"- {field}: \"{value}\"")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "TOOL_ARGS_INVALID",
+                    "message": "Confluence page requires additional fields",
+                    "details": {"missing": validation["missing"], "suggestions": suggestions},
+                    "reply_md": "\n".join(reply_lines),
+                },
+            )
+
+        autofill = suggestions.copy()
+        if llm_allowed:
+            for key, value in list(autofill.items()):
+                autofill[key] = f"{value} (auto-generated)"
+        title_value = title_value or autofill.get("title", title_value)
+        body_value = body_value or autofill.get("body_html", body_value)
+
+        validation = validate_tool_args("confluence_page", {"title": title_value, "body_html": body_value})
+        if not validation["ok"]:
+            reply_lines = [
+                f"⚠️ Confluence publish blocked: missing required fields: {', '.join(validation['missing'])}.",
+                "Suggested action:",
+                "- Provide the missing fields directly, or",
+                "- Allow tools ['confluence','llm'] for automatic generation.",
+            ]
+            if suggestions:
+                reply_lines.append("Auto-suggestions:")
+                for field, value in suggestions.items():
+                    reply_lines.append(f"- {field}: \"{value}\"")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "TOOL_ARGS_INVALID",
+                    "message": "Confluence page requires additional fields",
+                    "details": {"missing": validation["missing"], "suggestions": suggestions},
+                    "reply_md": "\n".join(reply_lines),
+                },
+            )
+
     try:
         request = PublishConfluenceRequest(
             space_key=resolved_space_key,
             space_id=resolved_space_id,
-            title=title,
-            body_html=body_html,
+            title=title_value,
+            body_html=body_value,
         )
     except ValidationError as exc:
         raise _validation_error_to_http(exc)
@@ -246,6 +400,7 @@ def confluence_page_tool(
             title=request.title,
             body_html=final_body,
             draft=settings.confluence_draft_mode,
+            allow_external=confluence_allowed,
         )
         logger.info(
             "publish_artifact:confluence_page",
@@ -260,7 +415,128 @@ def confluence_page_tool(
         return {"error": exc.message}
 
 
+def staffing_recommend_tool(
+    *,
+    user_claims: Dict[str, Any],
+    project_key: str | None = None,
+    project_id: int | str | None = None,
+    top_k: int = 3,
+    include_full: bool = False,
+) -> Dict[str, Any]:
+    role = user_claims.get("role", "Dev")
+    enforce("staffing_recommend", role)
+
+    tenant_id = user_claims.get("tenant_id")
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="Missing tenant context")
+
+    resolved_project = None
+    resolved_project_id: int | None = None
+    resolved_project_key: str | None = None
+
+    with deps.SessionLocal() as session:
+        if project_id is not None:
+            try:
+                resolved_project_id = int(project_id)
+            except (TypeError, ValueError):
+                resolved_project_id = None
+            else:
+                resolved_project = session.get(m.Project, resolved_project_id)
+                if resolved_project and resolved_project.tenant_id != tenant_id:
+                    resolved_project = None
+
+        key_candidate = str(project_key or "").strip()
+        if resolved_project is None and key_candidate:
+            resolved_project = (
+                session.query(m.Project)
+                .filter(m.Project.tenant_id == tenant_id)
+                .filter(func.lower(m.Project.key) == key_candidate.lower())
+                .one_or_none()
+            )
+
+        if resolved_project is None:
+            accessible = [
+                str(project).strip()
+                for project in user_claims.get("accessible_projects", [])
+                if isinstance(project, str) and str(project).strip().lower() != "global"
+            ]
+            fallback_key = next((value for value in accessible if value), None)
+            if fallback_key:
+                resolved_project = (
+                    session.query(m.Project)
+                    .filter(m.Project.tenant_id == tenant_id)
+                    .filter(func.lower(m.Project.key) == fallback_key.lower())
+                    .one_or_none()
+                )
+
+        if resolved_project is None:
+            raise HTTPException(status_code=404, detail="Project not found for staffing recommendation")
+
+        resolved_project_id = resolved_project.id
+        resolved_project_key = resolved_project.key
+
+        response = recommend_staff_port(
+            session,
+            user_claims=dict(user_claims),
+            project_id=resolved_project.id,
+        )
+
+        payload = response.model_dump()
+        all_candidates: List[Dict[str, Any]] = payload.get("candidates", []) or []
+
+        developer_ids = [candidate.get("developer_id") for candidate in all_candidates]
+        name_map: Dict[int, str] = {}
+        if developer_ids:
+            rows = (
+                session.query(m.Developer.id, m.Developer.display_name)
+                .filter(m.Developer.id.in_(developer_ids))
+                .all()
+            )
+            name_map = {dev_id: display_name for dev_id, display_name in rows}
+
+        for candidate in all_candidates:
+            dev_id = candidate.get("developer_id")
+            if isinstance(dev_id, int) and dev_id in name_map:
+                candidate["developer_name"] = name_map[dev_id]
+
+        try:
+            clamped_top = int(top_k)
+        except (TypeError, ValueError):
+            clamped_top = 3
+        clamped_top = max(1, min(clamped_top, 10))
+        trimmed_candidates = all_candidates[:clamped_top]
+
+        summary = ""
+        top_candidate = trimmed_candidates[0] if trimmed_candidates else None
+        if top_candidate:
+            name = top_candidate.get("developer_name") or f"Developer {top_candidate.get('developer_id')}"
+            fit = top_candidate.get("fit")
+            summary = f"Top staffing match: {name}"
+            if isinstance(fit, (int, float)):
+                summary += f" (fit {fit:.2f})"
+        else:
+            summary = f"No staffing candidates available for {resolved_project_key}."
+
+        result: Dict[str, Any] = {
+            "project": {
+                "id": resolved_project_id,
+                "key": resolved_project_key,
+                "name": resolved_project.name,
+            },
+            "candidates": trimmed_candidates,
+            "top_candidate": top_candidate,
+            "total_candidates": len(all_candidates),
+            "summary": summary,
+        }
+
+        if include_full:
+            result["all_candidates"] = all_candidates
+
+        return result
+
+
 def register_all_tools() -> None:
     register_tool("rag_search", rag_search_tool)
     register_tool("jira_epic", jira_epic_tool)
     register_tool("confluence_page", confluence_page_tool)
+    register_tool("staffing_recommend", staffing_recommend_tool)

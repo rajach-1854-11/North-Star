@@ -22,10 +22,12 @@ def _auth_headers() -> Dict[str, str]:
     return {"Authorization": f"Basic {token}", "Content-Type": "application/json"}
 
 
-def _tool_args_invalid(message: str, *, details: Dict[str, Any] | None = None) -> HTTPException:
+def _tool_args_invalid(message: str, *, details: Dict[str, Any] | None = None, reply_md: str | None = None) -> HTTPException:
     detail = {"code": "TOOL_ARGS_INVALID", "message": message}
     if details:
         detail["details"] = details
+    if reply_md:
+        detail["reply_md"] = reply_md
     return HTTPException(status_code=400, detail=detail)
 
 
@@ -134,8 +136,18 @@ def create_page(
     title: str,
     body_html: str,
     draft: bool = False,
+    allow_external: bool = True,
 ) -> Dict[str, Any]:
     """Create a Confluence page and return identifiers."""
+
+    if not allow_external:
+        raise _tool_args_invalid(
+            "Confluence adapter invoked without consent",
+            reply_md=(
+                "⚠️ Confluence publish blocked because 'confluence' was not included in allowed_tools.\n"
+                "Re-run with allowed_tools including 'confluence' (and optionally 'llm') to enable publishing."
+            ),
+        )
 
     if not settings.atlassian_base_url:
         raise ExternalServiceError("Atlassian base URL is not configured")

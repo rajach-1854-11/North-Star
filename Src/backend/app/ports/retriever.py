@@ -20,12 +20,39 @@ from app.policy.plan import PolicyPlan
 from app.utils.hashing import hash_text
 from worker.handlers.evidence_builder import build_evidence_snippets
 
-def _assert_targets_allowed(targets: Sequence[str], accessible: Sequence[str]) -> None:
-    """Ensure requested targets are within the caller's accessible projects."""
+def _assert_targets_allowed(targets: Sequence[str], accessible: Sequence[str]) -> List[str]:
+    """Ensure requested targets are within the caller's accessible projects.
 
-    for t in targets or []:
-        if t != "global" and t not in accessible:
-            raise HTTPException(status_code=403, detail=f"Access denied to project: {t}")
+    Returns a canonicalised list where casing matches the caller's accessible projects
+    (falling back to the original value when no canonical form exists).
+    """
+
+    accessible_map: Dict[str, str] = {}
+    for raw in accessible or []:
+        if raw is None:
+            continue
+        value = str(raw).strip()
+        if not value:
+            continue
+        accessible_map[value.lower()] = value
+
+    normalised: List[str] = []
+    for raw in targets or []:
+        if raw is None:
+            continue
+        candidate = str(raw).strip()
+        if not candidate:
+            continue
+        lowered = candidate.lower()
+        if lowered == "global":
+            normalised.append(accessible_map.get("global", "global"))
+            continue
+        canonical = accessible_map.get(lowered)
+        if canonical is None:
+            raise HTTPException(status_code=403, detail=f"Access denied to project: {candidate}")
+        normalised.append(canonical)
+
+    return normalised or [accessible_map.get("global", "global")]
 
 def _dedupe_by_chunk_id(
     rows: List[Tuple[float, str, Dict[str, Any]]],
@@ -74,6 +101,8 @@ def rag_search(
     targets: List[str] | None = None,
     k: int = 12,
     strategy: str = "qdrant",
+    include_rosetta: bool = False,
+    known_projects: List[str] | None = None,
     db: Session | None = None,
 ) -> Dict[str, Any]:
     """Execute the hybrid retriever and return fused payloads."""
@@ -106,9 +135,16 @@ def rag_search(
 
     targets = targets or ["global"]
     accessible = user_claims.get("accessible_projects", [])
-    _assert_targets_allowed(targets, accessible)
+    targets = _assert_targets_allowed(targets, accessible)
 
-    req = RetrieveReq(query=query, targets=list(targets or []), k=k, strategy=strategy)
+    req = RetrieveReq(
+        query=query,
+    targets=list(targets or []),
+        k=k,
+        strategy=strategy,
+        include_rosetta=include_rosetta,
+        known_projects=list(known_projects or []),
+    )
     plan = compile_policy(user_claims, req)
     plan_meta = _extract_plan_metadata(plan)
     filters = _meta_filters_from_plan(plan)
@@ -125,6 +161,7 @@ def rag_search(
     use_fallback = strategy == "local"
     fallback_message: str | None = None
     raw: List[Tuple[float, str, Dict[str, Any]]] = []
+    candidate_limit = max(int(k or 0), 40)
 
     if not use_fallback:
         try:
@@ -132,7 +169,7 @@ def rag_search(
                 tenant_id,
                 targets,
                 query,
-                k=max(k * 3, 24),
+                k=candidate_limit,
                 strategy=strategy,
                 meta_filters=filters,
             )
@@ -156,7 +193,7 @@ def rag_search(
                 tenant_id=tenant_id,
                 project_keys=targets,
                 query=query,
-                limit=max(k * 2, 24),
+                limit=candidate_limit,
             )
             if fallback_message is None:
                 fallback_message = "Remote retrieval unavailable; using local fallback results. Please retry later."
@@ -166,13 +203,22 @@ def rag_search(
     fused = _dedupe_by_chunk_id(raw, limit=k)
 
     hits: List[RetrieveHit] = []
+    raw_candidates: List[Dict[str, Any]] = []
     for score, col, pl in fused:
         src = pl.get("merged_sources") or pl.get("project_key") or pl.get("project_id", col)
+        candidate_payload = {
+            "score": float(score),
+            "source": str(src),
+            "chunk_id": pl.get("chunk_id", ""),
+            "text": pl.get("text", ""),
+            "embedding_present": bool(pl.get("embedding") is not None),
+        }
+        raw_candidates.append(candidate_payload)
         hits.append(RetrieveHit(
             text=pl.get("text", "[No text found in payload]"),
             score=float(score),
             source=str(src),
-            chunk_id=pl.get("chunk_id", "")
+            chunk_id=pl.get("chunk_id", ""),
         ))
 
     evidence = build_evidence_snippets(hits)
@@ -224,6 +270,7 @@ def rag_search(
         "fallback_message": fallback_message,
         "rosetta": rosetta_payload,
         "rosetta_narrative_md": rosetta_narrative_md,
+        "raw_candidates": raw_candidates,
     }
 
 def api_response(payload: Dict[str, Any]) -> RetrieveResp:

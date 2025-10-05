@@ -1,0 +1,525 @@
+from __future__ import annotations
+
+import copy
+
+import pytest
+from fastapi import HTTPException
+from fastapi.testclient import TestClient
+
+from app.config import settings
+from app.domain.schemas import ChatAction, ChatMetadata, ChatQueryReq, RetrieveHit
+from app.services import chat_history
+from app.services.chat_orchestrator import ChatOrchestrator
+
+
+@pytest.fixture
+def user_claims() -> dict[str, object]:
+    return {
+        "tenant_id": settings.tenant_id,
+        "role": "PO",
+        "accessible_projects": ["PX"],
+        "user_id": 101,
+    }
+
+
+def _auth_headers(client: TestClient, username: str = "po_admin") -> dict[str, str]:
+    response = client.post(f"/auth/token?username={username}&password=x")
+    assert response.status_code == 200, response.text
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_chat_orchestrator_low_diversity(
+    monkeypatch: pytest.MonkeyPatch,
+    client,  # noqa: F841 - ensures app initialises DB
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    plan_template = {
+        "steps": [
+            {
+                "tool": "rag_search",
+                "args": {"query": "help me learn about px", "targets": ["PX"], "k": 12},
+            }
+        ],
+        "output": {"summary": "", "gaps": [], "two_week_plan": [], "notes": ""},
+        "_meta": {},
+    }
+
+    def fake_register_all_tools() -> None:  # pragma: no cover - trivial monkeypatch
+        return None
+
+    def fake_create_plan(task_prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
+        assert "help me learn about px" in task_prompt
+        return copy.deepcopy(plan_template)
+
+    hit = RetrieveHit(
+        text="PX is an enterprise co-pilot for onboarding.",
+        score=1.2,
+        source="PX",
+        chunk_id="chunk-1",
+    )
+
+    retrieval_payload = {
+        "results": [hit],
+        "evidence": "[1] PX snippet",
+        "fallback_message": None,
+        "rosetta": None,
+        "rosetta_narrative_md": None,
+    }
+
+    def fake_execute_plan(plan: dict[str, object], _: dict[str, object]) -> dict[str, object]:
+        return {
+            "artifacts": {"step_1:rag_search": retrieval_payload},
+            "output": plan.get("output", {}),
+        }
+
+    monkeypatch.setattr("app.services.chat_orchestrator.agent_tools.register_all_tools", fake_register_all_tools)
+    monkeypatch.setattr("app.services.chat_orchestrator.create_plan", fake_create_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
+
+    llm_calls: list[list[dict[str, str]]] = []
+
+    def fake_generate_chat_response(messages: list[dict[str, str]], temperature: float = 0.2, max_tokens: int | None = 700) -> str:
+        llm_calls.append(messages)
+        assert messages[0]["role"] == "system"
+        assert "Context passages" in messages[1]["content"]
+        return "PX accelerates onboarding by automating project setup."
+
+    monkeypatch.setattr("app.services.chat_orchestrator.generate_chat_response", fake_generate_chat_response)
+
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+    req = ChatQueryReq(prompt="help me learn about px", metadata=ChatMetadata(targets=["PX"]))
+
+    resp = orchestrator.handle(req)
+
+    assert "PX" in resp.reply_md
+    assert resp.sources and resp.sources[0]["source"] == "PX"
+    assert resp.plan["steps"]
+    assert any(action.type == "retrieval" for action in resp.actions)
+    assert isinstance(resp.actions[0], ChatAction)
+    assert llm_calls, "LLM responder was not invoked"
+    assert resp.thread_id > 0
+
+    # ensure messages persisted
+    rows = chat_history.list_threads(db_session, tenant_id=user_claims["tenant_id"], user_id=user_claims["user_id"])
+    assert rows and rows[0][1] == 2  # user + assistant messages stored
+
+
+def test_chat_orchestrator_reports_tool_results(
+    monkeypatch: pytest.MonkeyPatch,
+    client,  # noqa: F841 - ensures app initialises DB
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    plan_template = {
+        "steps": [
+            {
+                "tool": "rag_search",
+                "args": {"query": "create epic", "targets": ["PX"], "k": 12},
+            },
+            {
+                "tool": "jira_epic",
+                "args": {"project_key": "PX", "summary": "Create Jira epic for PX onboarding"},
+            },
+        ],
+        "output": {"summary": "Created Jira epic", "gaps": [], "two_week_plan": [], "notes": ""},
+        "_meta": {},
+    }
+
+    def fake_register_all_tools() -> None:
+        return None
+
+    def fake_create_plan(task_prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
+        return copy.deepcopy(plan_template)
+
+    hit = RetrieveHit(
+        text="PX onboarding uses automated planners.",
+        score=1.0,
+        source="PX",
+        chunk_id="chunk-epic",
+    )
+
+    def fake_execute_plan(plan: dict[str, object], _: dict[str, object]) -> dict[str, object]:
+        return {
+            "artifacts": {
+                "step_1:rag_search": {"results": [hit], "fallback_message": None, "evidence": None},
+                "step_2:jira_epic": {
+                    "key": "PX-42",
+                    "url": "https://example.atlassian.net/browse/PX-42",
+                },
+            },
+            "output": plan.get("output", {}),
+        }
+
+    def fake_generate_chat_response(messages: list[dict[str, str]], temperature: float = 0.2, max_tokens: int | None = 700) -> str:
+        return "Automation completed successfully."
+
+    monkeypatch.setattr("app.services.chat_orchestrator.agent_tools.register_all_tools", fake_register_all_tools)
+    monkeypatch.setattr("app.services.chat_orchestrator.create_plan", fake_create_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.generate_chat_response", fake_generate_chat_response)
+
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+    req = ChatQueryReq(prompt="create epic", metadata=ChatMetadata(targets=["PX"]))
+
+    resp = orchestrator.handle(req)
+
+    assert "Automation results" in resp.reply_md
+    assert "PX-42" in resp.reply_md
+    assert "https://example.atlassian.net/browse/PX-42" in resp.reply_md
+
+    rows = chat_history.list_threads(db_session, tenant_id=user_claims["tenant_id"], user_id=user_claims["user_id"])
+    assert rows and rows[0][1] == 2
+
+
+def test_chat_orchestrator_reports_staffing_recommendation(
+    monkeypatch: pytest.MonkeyPatch,
+    client,  # noqa: F841 - ensures app initialises DB
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    plan_template = {
+        "steps": [
+            {
+                "tool": "rag_search",
+                "args": {"query": "who can help px", "targets": ["PX"], "k": 12},
+            },
+            {
+                "tool": "staffing_recommend",
+                "args": {"project_key": "PX"},
+            },
+        ],
+        "output": {"summary": "", "gaps": [], "two_week_plan": [], "notes": ""},
+        "_meta": {},
+    }
+
+    def fake_register_all_tools() -> None:
+        return None
+
+    def fake_create_plan(task_prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
+        return copy.deepcopy(plan_template)
+
+    hit = RetrieveHit(
+        text="PX automation requires deep skill engine knowledge.",
+        score=0.9,
+        source="PX",
+        chunk_id="chunk-staffing",
+    )
+
+    staffing_payload = {
+        "project": {"id": 101, "key": "PX", "name": "PX"},
+        "summary": "Top staffing match: Alex Johnson (fit 0.93)",
+        "top_candidate": {"developer_id": 7, "developer_name": "Alex Johnson", "fit": 0.93},
+        "candidates": [
+            {"developer_id": 7, "developer_name": "Alex Johnson", "fit": 0.93},
+            {"developer_id": 12, "developer_name": "Taylor Smith", "fit": 0.88},
+        ],
+        "total_candidates": 5,
+    }
+
+    def fake_execute_plan(plan: dict[str, object], _: dict[str, object]) -> dict[str, object]:
+        return {
+            "artifacts": {
+                "step_1:rag_search": {
+                    "results": [hit],
+                    "fallback_message": None,
+                    "evidence": None,
+                },
+                "step_2:staffing_recommend": staffing_payload,
+            },
+            "output": plan.get("output", {}),
+        }
+
+    monkeypatch.setattr("app.services.chat_orchestrator.agent_tools.register_all_tools", fake_register_all_tools)
+    monkeypatch.setattr("app.services.chat_orchestrator.create_plan", fake_create_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
+    monkeypatch.setattr(
+        "app.services.chat_orchestrator.generate_chat_response",
+        lambda messages, temperature=0.2, max_tokens=700: "Alex Johnson is the best fit.",
+    )
+
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+    req = ChatQueryReq(prompt="who can help px", metadata=ChatMetadata(targets=["PX"]))
+
+    resp = orchestrator.handle(req)
+
+    assert "Staffing recommendation" in resp.reply_md
+    assert "Alex Johnson" in resp.reply_md
+    assert "fit 0.93" in resp.reply_md
+
+
+def test_chat_thread_continuation_uses_history(
+    monkeypatch: pytest.MonkeyPatch,
+    client,  # noqa: F841
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    plan_template = {
+        "steps": [
+            {
+                "tool": "rag_search",
+                "args": {"query": "initial question", "targets": ["PX"], "k": 12},
+            }
+        ],
+        "output": {"summary": "", "gaps": [], "two_week_plan": [], "notes": ""},
+        "_meta": {},
+    }
+
+    def fake_register_all_tools() -> None:
+        return None
+
+    prompt_log: list[str] = []
+
+    def fake_create_plan(task_prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
+        prompt_log.append(task_prompt)
+        return copy.deepcopy(plan_template)
+
+    hit = RetrieveHit(text="PX answer", score=1.0, source="PX", chunk_id="chunk-1")
+
+    def fake_execute_plan(plan: dict[str, object], _: dict[str, object]) -> dict[str, object]:
+        return {
+            "artifacts": {"step_1:rag_search": {"results": [hit], "fallback_message": None, "evidence": None}},
+            "output": plan.get("output", {}),
+        }
+
+    def fake_generate_chat_response(messages: list[dict[str, str]], temperature: float = 0.2, max_tokens: int | None = 700) -> str:
+        return "First reply" if len(prompt_log) == 1 else "Follow-up reply"
+
+    monkeypatch.setattr("app.services.chat_orchestrator.agent_tools.register_all_tools", fake_register_all_tools)
+    monkeypatch.setattr("app.services.chat_orchestrator.create_plan", fake_create_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.generate_chat_response", fake_generate_chat_response)
+
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+
+    first_req = ChatQueryReq(prompt="initial question", metadata=ChatMetadata(targets=["PX"]))
+    first_resp = orchestrator.handle(first_req)
+
+    follow_req = ChatQueryReq(prompt="what else?", metadata=ChatMetadata(targets=["PX"]), thread_id=first_resp.thread_id)
+    follow_resp = orchestrator.handle(follow_req)
+
+    assert follow_resp.thread_id == first_resp.thread_id
+    assert len(prompt_log) == 2
+    assert "User: initial question" in prompt_log[1]
+    assert "Assistant:" in prompt_log[1]
+
+    rows = chat_history.list_threads(db_session, tenant_id=user_claims["tenant_id"], user_id=user_claims["user_id"])
+    assert rows and rows[0][1] == 4  # two turns = four messages
+
+def test_chat_thread_endpoints(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:
+    plan_template = {
+        "steps": [
+            {"tool": "rag_search", "args": {"query": "hello", "targets": ["PX"], "k": 12}},
+        ],
+        "output": {"summary": "", "gaps": [], "two_week_plan": [], "notes": ""},
+        "_meta": {},
+    }
+
+    def fake_register_all_tools() -> None:
+        return None
+
+    def fake_create_plan(task_prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
+        return copy.deepcopy(plan_template)
+
+    hit = RetrieveHit(text="PX detail", score=0.9, source="PX", chunk_id="chunk-42")
+
+    def fake_execute_plan(plan: dict[str, object], user_claims: dict[str, object]) -> dict[str, object]:
+        return {
+            "artifacts": {
+                "step_1:rag_search": {
+                    "results": [hit],
+                    "fallback_message": None,
+                    "evidence": None,
+                }
+            },
+            "output": plan.get("output", {}),
+        }
+
+    def fake_generate_chat_response(messages: list[dict[str, str]], temperature: float = 0.2, max_tokens: int | None = 700) -> str:
+        return "Thread reply"
+
+    monkeypatch.setattr("app.services.chat_orchestrator.agent_tools.register_all_tools", fake_register_all_tools)
+    monkeypatch.setattr("app.services.chat_orchestrator.create_plan", fake_create_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.generate_chat_response", fake_generate_chat_response)
+
+    headers = _auth_headers(client)
+
+    create_resp = client.post("/chat/threads", json={"title": "Demo thread"}, headers=headers)
+    assert create_resp.status_code == 200, create_resp.text
+    thread_id = create_resp.json()["id"]
+
+    chat_payload = {
+        "prompt": "hello",
+        "metadata": {"targets": ["PX"]},
+        "thread_id": thread_id,
+    }
+    first = client.post("/chat/session", json=chat_payload, headers=headers)
+    assert first.status_code == 200, first.text
+    assert first.json()["thread_id"] == thread_id
+
+    follow_payload = {
+        "prompt": "any updates?",
+        "metadata": {"targets": ["PX"]},
+        "thread_id": thread_id,
+    }
+    second = client.post("/chat/session", json=follow_payload, headers=headers)
+    assert second.status_code == 200, second.text
+    assert second.json()["thread_id"] == thread_id
+
+    list_resp = client.get("/chat/threads", headers=headers)
+    assert list_resp.status_code == 200, list_resp.text
+    threads = list_resp.json()["threads"]
+    assert threads and threads[0]["message_count"] == 4
+    assert threads[0]["last_message_at"] is not None
+
+    detail_resp = client.get(f"/chat/threads/{thread_id}", headers=headers)
+    assert detail_resp.status_code == 200, detail_resp.text
+    body = detail_resp.json()
+    assert body["message_count"] == 4
+    assert len(body["messages"]) == 4
+    assert body["messages"][0]["content"].startswith("hello")
+    assert body["messages"][0]["timestamp"] is not None
+
+    history_resp = client.get(f"/chat/threads/{thread_id}/messages", headers=headers)
+    assert history_resp.status_code == 200, history_resp.text
+    assert history_resp.json()["message_count"] == 4
+
+    patch_resp = client.patch(
+        f"/chat/threads/{thread_id}",
+        json={"title": "Renamed thread"},
+        headers=headers,
+    )
+    assert patch_resp.status_code == 200, patch_resp.text
+    patched = patch_resp.json()
+    assert patched["title"] == "Renamed thread"
+    assert patched["message_count"] == 4
+
+    delete_resp = client.delete(f"/chat/threads/{thread_id}", headers=headers)
+    assert delete_resp.status_code == 204, delete_resp.text
+
+    missing_resp = client.get(f"/chat/threads/{thread_id}", headers=headers)
+    assert missing_resp.status_code == 404, missing_resp.text
+
+    remaining = client.get("/chat/threads", headers=headers)
+    assert remaining.status_code == 200, remaining.text
+    assert remaining.json()["threads"] == []
+
+
+def test_execute_plan_respects_default_consent(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.ports import planner
+
+    fake_registry: dict[str, object] = {}
+
+    def fake_tool(*, user_claims: dict[str, object], **kwargs: object) -> dict[str, object]:
+        return {"ok": True, "args": kwargs}
+
+    fake_registry["confluence_page"] = fake_tool
+
+    monkeypatch.setattr(planner, "_TOOL_REGISTRY", fake_registry)
+    monkeypatch.setattr(planner, "enforce", lambda tool, role: None)
+    monkeypatch.setattr(planner.audit_log, "write_chat_audit_entry", lambda **_: None)
+
+    user_claims = {"role": "PO", "tenant_id": "tenant1", "user_id": 1}
+    plan = {
+        "steps": [
+            {
+                "tool": "confluence_page",
+                "args": {"space_key": "PX", "title": "Doc", "body_html": "<p>Doc</p>"},
+            }
+        ],
+        "output": {},
+        "_meta": {"allowed_tools": ["confluence_page"], "allowed_tools_provided": False},
+    }
+
+    result = planner.execute_plan(plan, user_claims)
+    assert result["artifacts"]["step_1:confluence_page"]["ok"] is True
+
+
+def test_execute_plan_respects_aliases_in_explicit_consent(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.ports import planner
+
+    fake_registry: dict[str, object] = {}
+
+    def fake_tool(*, user_claims: dict[str, object], **kwargs: object) -> dict[str, object]:
+        return {"ok": True}
+
+    fake_registry["confluence_page"] = fake_tool
+
+    monkeypatch.setattr(planner, "_TOOL_REGISTRY", fake_registry)
+    monkeypatch.setattr(planner, "enforce", lambda tool, role: None)
+    monkeypatch.setattr(planner.audit_log, "write_chat_audit_entry", lambda **_: None)
+
+    user_claims = {"role": "PO", "tenant_id": "tenant1", "user_id": 1}
+    plan = {
+        "steps": [
+            {
+                "tool": "confluence_page",
+                "args": {"space_key": "PX", "title": "Doc", "body_html": "<p>Body</p>"},
+            }
+        ],
+        "output": {},
+        "_meta": {"allowed_tools": ["confluence_page"], "allowed_tools_provided": True},
+    }
+
+    result = planner.execute_plan(plan, user_claims)
+    assert result["artifacts"]["step_1:confluence_page"]["ok"] is True
+
+
+def test_chat_orchestrator_prompts_for_missing_tool_fields(
+    monkeypatch: pytest.MonkeyPatch,
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    plan_template = {
+        "steps": [
+            {
+                "tool": "jira_issue",
+                "args": {"project_key": "PX"},
+            }
+        ],
+        "output": {"summary": "", "gaps": [], "two_week_plan": [], "notes": ""},
+        "_meta": {},
+    }
+
+    def fake_register_all_tools() -> None:
+        return None
+
+    def fake_create_plan(task_prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
+        return copy.deepcopy(plan_template)
+
+    def fake_execute_plan(plan: dict[str, object], user_claims: dict[str, object]) -> dict[str, object]:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "TOOL_ARGS_INVALID",
+                "message": "Jira issue requires additional fields",
+                "details": {"missing": ["summary", "description"]},
+            },
+        )
+
+    monkeypatch.setattr("app.services.chat_orchestrator.agent_tools.register_all_tools", fake_register_all_tools)
+    monkeypatch.setattr("app.services.chat_orchestrator.create_plan", fake_create_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
+
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+    req = ChatQueryReq(prompt="create jira issue", metadata=ChatMetadata(targets=["PX"]))
+
+    resp = orchestrator.handle(req)
+
+    assert resp.pending_fields == {
+        "code": "TOOL_ARGS_INVALID",
+        "missing": ["summary", "description"],
+        "message": "Jira issue requires additional fields",
+    }
+    assert "Need a bit more info" in resp.reply_md
+    assert "summary" in resp.reply_md
+    assert resp.thread_id > 0
+
+    threads = chat_history.list_threads(
+        db_session,
+        tenant_id=user_claims["tenant_id"],
+        user_id=user_claims["user_id"],
+    )
+    assert threads and threads[0][1] == 2

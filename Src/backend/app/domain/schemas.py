@@ -223,3 +223,95 @@ class AgentQueryResp(BaseModel):
     artifacts: Dict[str, Any]
     output: Dict[str, Any]
     message: str | None = None
+
+
+class ChatMessage(BaseModel):
+    """Single turn in a chat conversation."""
+
+    role: Literal["user", "assistant", "system"]
+    content: str
+    timestamp: datetime | None = None
+    metadata: Dict[str, Any] | None = None
+
+
+class ChatMetadata(BaseModel):
+    """Optional metadata shared by the frontend to guide tool selection."""
+
+    intent: Optional[str] = None
+    targets: List[str] = Field(default_factory=list)
+    include_rosetta: Optional[bool] = None
+    known_projects: List[str] = Field(default_factory=list)
+    additional: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ChatQueryReq(BaseModel):
+    """Request payload for the unified chat endpoint."""
+
+    prompt: str
+    autonomy: AutonomyMode = "Ask"
+    history: List[ChatMessage] = Field(default_factory=list)
+    allowed_tools: Optional[List[str]] = None
+    metadata: Optional[ChatMetadata] = None
+    thread_id: Optional[int] = None
+    thread_title: Optional[str] = None
+
+
+class ChatAction(BaseModel):
+    """Action that was executed as part of the chat turn."""
+
+    type: Literal["jira_ticket", "confluence_page", "retrieval", "info"]
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ChatResp(BaseModel):
+    """Response payload returned by the chat endpoint."""
+
+    reply_md: str
+    plan: Dict[str, Any]
+    artifacts: Dict[str, Any]
+    output: Dict[str, Any]
+    actions: List[ChatAction] = Field(default_factory=list)
+    sources: List[Dict[str, Any]] = Field(default_factory=list)
+    two_week_plan: List[Dict[str, Any]] = Field(default_factory=list)
+    pending_fields: Dict[str, Any] | None = None
+    message: str | None = None
+    thread_id: int
+    thread_title: str | None = None
+
+
+class ChatThreadCreateReq(BaseModel):
+    """Request body for creating a chat thread explicitly."""
+
+    title: Optional[str] = None
+
+
+class ChatThreadPatchReq(BaseModel):
+    """Request body for updating chat thread metadata."""
+
+    title: Optional[str] = None
+
+
+class ChatThreadResp(BaseModel):
+    """Thread metadata returned to clients."""
+
+    id: int
+    title: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    message_count: int = 0
+    last_message_at: datetime | None = None
+
+
+class ChatThreadListResp(BaseModel):
+    """Wrapper for a user's chat threads."""
+
+    threads: List[ChatThreadResp]
+
+
+class ChatThreadMessagesResp(BaseModel):
+    """Response containing messages for a given thread."""
+
+    thread_id: int
+    title: Optional[str]
+    message_count: int
+    messages: List[ChatMessage]

@@ -16,6 +16,17 @@ from app.application.policy_bus import enforce
 from app.domain.errors import ExternalServiceError
 from loguru import logger
 
+from app.agentic.utility import (
+    REQUIRED_TOOL_FIELDS,
+    build_context_items,
+    local_extract_for_fields,
+    mmr_select,
+    normalise_tool_name,
+    validate_tool_args,
+)
+from app.application import audit_log
+from app.application import error_handlers as app_error_handlers
+
 # ---- Tool registry (names -> callables) -------------------------------------
 
 ToolFn = Callable[..., Any]
@@ -87,6 +98,17 @@ def create_plan(task_prompt: str, allowed_tools: List[str] | None = None) -> Dic
     plan["output"].setdefault("notes", "llm_plan")
     meta = plan.setdefault("_meta", {})
     meta.setdefault("task_prompt", task_prompt)
+    if "allowed_tools" not in meta:
+        normalised = []
+        seen: set[str] = set()
+        for tool in allowed_tools or []:
+            lowered = str(tool).lower()
+            if lowered not in seen:
+                seen.add(lowered)
+                normalised.append(lowered)
+        meta["allowed_tools"] = normalised
+    if "allowed_tools_provided" not in meta:
+        meta["allowed_tools_provided"] = allowed_tools is not None
     return plan
 
 
@@ -548,39 +570,129 @@ def _sanitize_tool_args(
 
 # ---- Execution --------------------------------------------------------------
 
-def execute_plan(plan: Dict[str, Any], user_claims: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute a plan against registered tools while enforcing RBAC."""
+def execute_plan(
+    plan: Dict[str, Any],
+    user_claims: Dict[str, Any],
+    *,
+    allowed_tools: Sequence[str] | None = None,
+) -> Dict[str, Any]:
+    """Execute a plan against registered tools while enforcing RBAC and consent."""
+
     role = user_claims.get("role", "Dev")
     artifacts: Dict[str, Any] = {}
     steps = plan.get("steps", [])
+    meta = plan.get("_meta", {}) or {}
 
-    ctx: Dict[str, Any] = {"user": user_claims, "last": {}}
+    consent_list: Sequence[str] | None
+    if allowed_tools is not None:
+        consent_list = allowed_tools
+    else:
+        consent_list = meta.get("allowed_tools")
+
+    consent_explicit = allowed_tools is not None or bool(meta.get("allowed_tools_provided"))
+
+    raw_allowed: set[str] = set()
+    canonical_allowed: set[str] = set()
+    for tool in consent_list or []:
+        lowered = str(tool or "").strip().lower()
+        if not lowered:
+            continue
+        raw_allowed.add(lowered)
+        canonical_allowed.add(normalise_tool_name(lowered))
+
+    allowed_set = raw_allowed | canonical_allowed
+    allow_llm = ("llm" in allowed_set or "llm" in canonical_allowed) if consent_explicit else True
+
+    context_items: List[Dict[str, Any]] = []
+    raw_candidates: List[Dict[str, Any]] = []
+    adapter_events: List[Dict[str, Any]] = []
+
+    ctx: Dict[str, Any] = {"user": user_claims, "last": {}, "context_items": context_items}
 
     for idx, step in enumerate(steps, start=1):
         tool = step.get("tool")
         args = step.get("args", {}) or {}
         if tool not in _TOOL_REGISTRY:
-            logger.warning(f"Unknown tool '{tool}' in step {idx}; skipping.")
+            logger.warning("Unknown tool '{}' in step {}; skipping.".format(tool, idx))
             continue
-        enforce(tool, role)  # RBAC check
-        # Resolve placeholders against context
+
+        enforce(tool, role)
         args = _resolve_value(args, ctx)
 
+        if tool == "rag_search":
+            args.setdefault("k", 40)
+
         args, skip_reason = _sanitize_tool_args(tool, args, user_claims, plan)
+        artifact_key = f"step_{idx}:{tool}"
         if skip_reason is not None:
-            artifacts[f"step_{idx}:{tool}"] = {"skipped": skip_reason}
-            logger.warning(f"Skipping tool '{tool}' in step {idx}: {skip_reason}")
+            artifacts[artifact_key] = {"skipped": skip_reason}
+            adapter_events.append({"tool": tool, "status": "skipped", "reason": skip_reason})
+            logger.warning("Skipping tool '{}' in step {}: {}".format(tool, idx, skip_reason))
             continue
 
-        try:
-            res = _TOOL_REGISTRY[tool](user_claims=user_claims, **args)
-            artifacts[f"step_{idx}:{tool}"] = res
-            ctx["last"] = res if isinstance(res, dict) else {"value": res}
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.exception(f"Tool '{tool}' failed: {e}")
-            artifacts[f"step_{idx}:{tool}"] = {"error": str(e)}
-            # keep last unchanged on failure
+        canonical_tool = normalise_tool_name(str(tool or ""))
+        if consent_explicit and canonical_tool not in {"rag_search"}:
+            if not allowed_set or canonical_tool not in allowed_set:
+                detail = app_error_handlers.render_tool_blocked(
+                    tool=canonical_tool,
+                    suggestions=local_extract_for_fields(context_items, REQUIRED_TOOL_FIELDS.get(tool, [])),
+                )
+                adapter_events.append({"tool": tool, "status": "blocked", "detail": detail})
+                raise HTTPException(status_code=400, detail=detail)
 
-    return {"artifacts": artifacts, "output": plan.get("output", {})}
+        tool_claims = dict(user_claims)
+        if consent_explicit:
+            tool_claims["allowed_tools"] = list(allowed_set)
+        if context_items:
+            tool_claims["chat_context"] = context_items
+
+        try:
+            res = _TOOL_REGISTRY[tool](user_claims=tool_claims, **args)
+            artifacts[artifact_key] = res
+            if isinstance(res, dict):
+                ctx["last"] = res
+            else:
+                ctx["last"] = {"value": res}
+
+            adapter_events.append({"tool": tool, "status": "success"})
+
+            if tool == "rag_search" and isinstance(res, dict):
+                raw_candidates = res.get("raw_candidates") or []
+                top_hits = mmr_select(res.get("results") or [], limit=6)
+                context_items = build_context_items(top_hits, allow_llm=allow_llm)
+                ctx["context_items"] = context_items
+                res.setdefault("top6", top_hits)
+                res.setdefault("context", context_items)
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, dict) else {"message": str(exc.detail)}
+            adapter_events.append({"tool": tool, "status": "error", "detail": detail})
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Tool '%s' failed: %s", tool, exc)
+            artifacts[artifact_key] = {"error": str(exc)}
+            adapter_events.append({"tool": tool, "status": "exception", "error": str(exc)})
+
+    plan_output = plan.get("output", {}) or {}
+    enriched_output = dict(plan_output)
+    if context_items:
+        enriched_output.setdefault("context_items", context_items)
+    if raw_candidates:
+        enriched_output.setdefault("retriever_candidates", raw_candidates)
+
+    try:
+        audit_log.write_chat_audit_entry(
+            request_id=str(user_claims.get("request_id") or ""),
+            tenant_id=str(user_claims.get("tenant_id") or ""),
+            user_id=user_claims.get("user_id"),
+            query=str(meta.get("task_prompt") or ""),
+            retriever_candidates=raw_candidates,
+            top6=context_items,
+            planner_instruction=enriched_output.get("notes") or enriched_output.get("summary"),
+            llm_payload=enriched_output.get("llm_payload"),
+            llm_response=enriched_output.get("llm_response"),
+            adapter_events=adapter_events,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Audit log write failed: %s", exc)
+
+    return {"artifacts": artifacts, "output": enriched_output}

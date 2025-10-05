@@ -21,10 +21,12 @@ _EPIC_NAME_FIELD_LOCK = Lock()
 _EPIC_CREATE_META_CACHE: Dict[Tuple[str | None, str | None, str], bool] = {}
 
 
-def _tool_args_invalid(message: str, *, details: Dict[str, Any] | None = None) -> HTTPException:
+def _tool_args_invalid(message: str, *, details: Dict[str, Any] | None = None, reply_md: str | None = None) -> HTTPException:
     detail = {"code": "TOOL_ARGS_INVALID", "message": message}
     if details:
         detail["details"] = details
+    if reply_md:
+        detail["reply_md"] = reply_md
     return HTTPException(status_code=400, detail=detail)
 
 
@@ -223,8 +225,19 @@ def create_issue(
     description_adf: Dict[str, Any] | None = None,
     labels: List[str] | None = None,
     epic_name_field_id: str | None = None,
+    allow_external: bool = True,
 ) -> Dict[str, Any]:
     """Create a Jira issue (Epic/Task/etc) and return identifiers."""
+
+    if not allow_external:
+        raise _tool_args_invalid(
+            "Jira adapter invoked without consent",
+            details={"missing": ["summary", "description"]},
+            reply_md=(
+                "⚠️ Jira creation blocked: adapter call attempted without consent.\n"
+                "Re-run with allowed_tools including 'jira' to enable this action."
+            ),
+        )
 
     if not settings.atlassian_base_url:
         raise ExternalServiceError("Atlassian base URL is not configured")
@@ -339,6 +352,7 @@ def create_epic(
     epic_name_field_id: str | None = None,
     project_id: str | None = None,
     project_key: str | None = None,
+    allow_external: bool = True,
 ) -> Dict[str, Any]:
     """Backwards-compatible wrapper that always creates an Epic."""
 
@@ -356,4 +370,5 @@ def create_epic(
         description_adf=description_adf,
         labels=labels,
         epic_name_field_id=epic_name_field_id,
+        allow_external=allow_external,
     )
