@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
@@ -12,6 +13,9 @@ from app import deps
 from app.config import settings
 from app.domain import models as m
 from app.utils.passwords import hash_password, verify_password
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_or_create_user(db: Session, *, tenant_id: str, username: str, role: str, password: str) -> m.User:
@@ -112,10 +116,20 @@ def _seed_using_csv_directory(tenant_id: str) -> bool:
     # During tests we swap ``deps.SessionLocal`` to an in-memory SQLite engine,
     # but the seeder module caches the original factory at import time. Wiring
     # it here keeps the fixtures and the seeder in sync.
-    data_seeder.SessionLocal = deps.SessionLocal  # type: ignore[attr-defined]
+    if hasattr(data_seeder, "set_session_factory"):
+        data_seeder.set_session_factory(deps.SessionLocal)
+    else:  # pragma: no cover - defensive fallback for older builds
+        data_seeder.SessionLocal = deps.SessionLocal  # type: ignore[attr-defined]
 
     context = data_seeder.SeederContext(tenant_id=tenant_id, dry_run=False, allow_update=True)
-    data_seeder._process_directory(seed_dir, context)
+    try:
+        data_seeder._process_directory(seed_dir, context)
+    except data_seeder.SeederError as exc:
+        logger.warning("CSV seed processing failed, falling back to legacy defaults: %s", exc)
+        return False
+    except Exception:  # pragma: no cover - unexpected failure path
+        logger.exception("Unexpected error during CSV seed processing")
+        return False
     return True
 
 

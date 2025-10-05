@@ -6,8 +6,9 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from app.agentic.utility import EMPTY_VALUE_SENTINEL
 from app.config import settings
-from app.domain.schemas import ChatAction, ChatMetadata, ChatQueryReq, RetrieveHit
+from app.domain.schemas import ChatAction, ChatMetadata, ChatMessage, ChatQueryReq, RetrieveHit
 from app.services import chat_history
 from app.services.chat_orchestrator import ChatOrchestrator
 
@@ -182,6 +183,163 @@ def test_chat_orchestrator_reports_tool_results(
 
     rows = chat_history.list_threads(db_session, tenant_id=user_claims["tenant_id"], user_id=user_claims["user_id"])
     assert rows and rows[0][1] == 2
+
+
+def test_detect_tool_intent_resolves_previous_description(
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+
+    history = [
+        ChatMessage(role="assistant", content="RBAC enforcement requires updating the permission matrix."),
+    ]
+
+    req = ChatQueryReq(
+        prompt="Create a Jira epic for project PX. The summary is implement RBAC in PX. Use your previous answer as the description.",
+        history=history,
+        metadata=ChatMetadata(targets=["PX"]),
+    )
+
+    intent = orchestrator._detect_tool_intent(req)
+
+    assert intent.tool == "jira_epic"
+    assert intent.summary == "implement RBAC in PX"
+    assert intent.description == "RBAC enforcement requires updating the permission matrix."
+    assert intent.missing_fields == []
+
+
+def test_extract_named_value_supports_is_phrasing(db_session, user_claims: dict[str, object]) -> None:
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+
+    value = orchestrator._extract_named_value("The summary is implement RBAC in PX.", "summary")
+
+    assert value == "implement RBAC in PX"
+
+
+def test_detect_tool_intent_converts_plain_body_to_html(db_session, user_claims: dict[str, object]) -> None:
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+
+    req = ChatQueryReq(
+        prompt="Create a Confluence page titled 'PX Weekly Update' space='PX' body='Status update for the week.'",
+        metadata=ChatMetadata(),
+    )
+
+    intent = orchestrator._detect_tool_intent(req)
+
+    assert intent.tool == "confluence_page"
+    assert intent.title == "PX Weekly Update"
+    assert intent.space == "PX"
+    assert intent.body_html == "<p>Status update for the week.</p>"
+    assert intent.missing_fields == []
+
+
+def test_detect_tool_intent_reuses_previous_answer_for_confluence_body(
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+
+    history = [
+        ChatMessage(role="assistant", content="PX RBAC requires policy hooks at the adapter boundary."),
+    ]
+
+    req = ChatQueryReq(
+        prompt="Publish a Confluence page titled 'PX RBAC Notes' space='PX' use your previous answer as the body.",
+        history=history,
+        metadata=ChatMetadata(additional={"space_key": "PX"}),
+    )
+
+    intent = orchestrator._detect_tool_intent(req)
+
+    assert intent.tool == "confluence_page"
+    assert intent.title == "PX RBAC Notes"
+    assert intent.space == "PX"
+    assert intent.body_html is not None and "PX RBAC requires" in intent.body_html
+    assert "body_html" not in intent.missing_fields
+
+
+def test_detect_tool_intent_allows_empty_jira_description(db_session, user_claims: dict[str, object]) -> None:
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+
+    req = ChatQueryReq(
+        prompt="Create a Jira epic for project PX summary='PX automation skeleton'. Leave the description blank.",
+        metadata=ChatMetadata(targets=["PX"]),
+    )
+
+    intent = orchestrator._detect_tool_intent(req)
+
+    assert intent.tool == "jira_epic"
+    assert intent.summary == "PX automation skeleton"
+    assert intent.description == EMPTY_VALUE_SENTINEL
+    assert "description" not in intent.missing_fields
+
+
+def test_detect_tool_intent_infers_tool_from_field_dump(db_session, user_claims: dict[str, object]) -> None:
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+
+    req = ChatQueryReq(
+        prompt="project key is px, summary is kobo, description is bobo. for the user dev_alex",
+        metadata=ChatMetadata(),
+    )
+
+    intent = orchestrator._detect_tool_intent(req)
+
+    assert intent.tool == "jira_epic"
+    assert intent.explicit is True
+    assert intent.inferred_project == "PX"
+    assert intent.summary == "kobo"
+    assert intent.description == "bobo"
+    assert intent.missing_fields == []
+
+
+def test_detect_tool_intent_retries_after_clarification(db_session, user_claims: dict[str, object]) -> None:
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+
+    history = [
+        ChatMessage(
+            role="assistant",
+            content="To create a Jira epic, I need: project key, summary, description.",
+            metadata={
+                "payload": {
+                    "plan": {"_meta": {"clarification_tool": "jira_epic", "pending_retry_tool": "jira_epic"}},
+                    "artifacts": {},
+                }
+            },
+        )
+    ]
+
+    req = ChatQueryReq(
+        prompt="project key is px, summary is implement RBAC in PX.",
+        history=history,
+        metadata=ChatMetadata(),
+    )
+
+    intent = orchestrator._detect_tool_intent(req)
+
+    assert intent.tool == "jira_epic"
+    assert intent.explicit is True
+    assert intent.inferred_project == "PX"
+    assert intent.summary == "implement RBAC in PX"
+    assert "description" in intent.missing_fields
+
+
+def test_chat_orchestrator_blocks_inaccessible_project(
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+
+    req = ChatQueryReq(
+        prompt="Can you share the roadmap for project PB?",
+        metadata=ChatMetadata(targets=["PB"]),
+    )
+
+    resp = orchestrator.handle(req)
+
+    assert "access" in resp.reply_md.lower()
+    assert resp.plan["_meta"]["denied_projects"] == ["PB"]
+    assert resp.actions == []
 
 
 def test_chat_orchestrator_reports_staffing_recommendation(

@@ -59,10 +59,10 @@ Feature: Staffing Recommendation Console
 ----------------------------------------
 Summary: Surface a ranked list of candidate developers with scoring explanations for a project.
 Primary personas: Admin, Product Owner, Business Analyst.
-Entry points: `GET /staff/recommend?project_id=*` (`seq_api__staff_recommend_get.md`).
+Entry points: `GET /staff/recommend?project_id=*` (also accepts `project_key=*`) (`seq_api__staff_recommend_get.md`).
 RBAC contract: Admin/PO/BA only.
 Data reads/writes: Reads `project`, `developer`, `developer_skill`, `project_skill`; no writes.
-Downstream dependencies: Uses `rank_candidates` (cosine similarity, recency boost). Returns weights for UX charts, explanation bullet points, and availability hints.
+Downstream dependencies: Uses `rank_candidates` (cosine similarity, recency boost). Returns weights for UX charts, availability hints, and structured `skill_gaps` (path, name, Δ) for filter chips.
 Observability: No external calls; pure SQL + application logic. Logging limited to defaults.
 Edge cases & UX notes: Missing tenant/project -> 404; empty tenant -> empty candidate array with HTTP 200.
 Config toggles: None.

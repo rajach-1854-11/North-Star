@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import html
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Sequence
@@ -13,6 +14,7 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.agentic import tools as agent_tools
+from app.agentic.utility import EMPTY_VALUE_SENTINEL
 from app.domain.errors import ExternalServiceError
 from app.domain.schemas import ChatAction, ChatMetadata, ChatMessage, ChatQueryReq, ChatResp
 from app.domain import models as m
@@ -63,6 +65,7 @@ class ToolIntent:
     description: Optional[str] = None
     title: Optional[str] = None
     space: Optional[str] = None
+    body_html: Optional[str] = None
     missing_fields: List[str] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
@@ -98,7 +101,9 @@ class ChatOrchestrator:
     def _detect_tool_intent(self, req: ChatQueryReq) -> ToolIntent:
         prompt = (req.prompt or "").strip()
         metadata = req.metadata or ChatMetadata()
+        history = req.history or []
         lowered = prompt.lower()
+        last_assistant_reply = self._last_assistant_message(history)
 
         explicit = False
         tool: Optional[str] = None
@@ -123,6 +128,15 @@ class ChatOrchestrator:
                     break
 
         if tool is None:
+            pending_tool = self._pending_tool_from_history(history)
+            if pending_tool:
+                tool = pending_tool
+                explicit = True
+        if tool is None and self._looks_like_jira_field_dump(prompt):
+            tool = "jira_epic"
+            explicit = True
+
+        if tool is None:
             return ToolIntent(tool=None, explicit=False, missing_fields=[])
 
         normalised_allowed = self._normalise_allowed_tools(req.allowed_tools or [])
@@ -136,6 +150,18 @@ class ChatOrchestrator:
         if tool == "jira_epic":
             summary = self._extract_named_value(prompt, "summary")
             description = self._extract_named_value(prompt, "description")
+
+            if summary and self._is_previous_answer_reference(summary):
+                summary = last_assistant_reply or None
+
+            if description and self._is_previous_answer_reference(description):
+                description = last_assistant_reply or None
+            elif not description and self._mentions_previous_answer(prompt, "description"):
+                description = last_assistant_reply or None
+
+            if self._wants_empty_field(prompt, "description") and not description:
+                description = EMPTY_VALUE_SENTINEL
+
             intent.inferred_project = project
             intent.summary = summary
             intent.description = description
@@ -150,13 +176,33 @@ class ChatOrchestrator:
         elif tool == "confluence_page":
             title = self._extract_title(prompt)
             space = self._extract_space(prompt) or metadata.additional.get("space_key")
+            body = (
+                self._extract_named_value(prompt, "body")
+                or self._extract_named_value(prompt, "content")
+                or self._extract_named_value(prompt, "description")
+            )
+            body_mentions_previous = self._mentions_previous_answer(prompt, "body")
+            body_mentions_content = self._mentions_previous_answer(prompt, "content")
+            body_mentions_any = body_mentions_previous or body_mentions_content
+
+            if body and self._is_previous_answer_reference(body):
+                body = None
+                body_html = self._normalise_body_html(last_assistant_reply)
+            elif not body and body_mentions_any:
+                body_html = self._normalise_body_html(last_assistant_reply)
+            else:
+                body_html = self._normalise_body_html(body)
+
             intent.title = title
             intent.space = space
+            intent.body_html = body_html
             missing = []
             if not space:
                 missing.append("space")
             if not title:
                 missing.append("title")
+            if not body_html:
+                missing.append("body_html")
             intent.missing_fields = missing
         elif tool == "staffing_recommend":
             intent.inferred_project = project
@@ -194,17 +240,245 @@ class ChatOrchestrator:
         return None
 
     def _extract_project_key(self, text: str) -> Optional[str]:
+        if not text:
+            return None
+
         match = _PROJECT_PATTERN.search(text)
         if match:
             return match.group(1).upper()
+
+        key_patterns = [
+            r"project\s*key\s*(?:=|:|is|should\s+be|needs\s+to\s+be|must\s+be|be)\s*['\"]?([A-Za-z][A-Za-z0-9_-]{1,30})['\"]?",
+            r"project_key\s*(?:=|:|is)\s*['\"]?([A-Za-z][A-Za-z0-9_-]{1,30})['\"]?",
+            r"project\s*(?:=|:|is)\s*['\"]?([A-Za-z][A-Za-z0-9_-]{1,30})['\"]?",
+            r"for\s+project\s+([A-Za-z][A-Za-z0-9_-]{1,30})",
+        ]
+        for pattern in key_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                return match.group(1).strip().upper()
+
         return None
 
     def _extract_named_value(self, text: str, name: str) -> Optional[str]:
+        if not text:
+            return None
+
         pattern = re.compile(rf"{name}\s*(?:=|:)\s*['\"]([^'\"]+)['\"]", re.IGNORECASE)
         match = pattern.search(text)
         if match:
             return match.group(1).strip()
+
+        pattern_alt = re.compile(
+            rf"{name}\s*(?:is|should\s+be|needs\s+to\s+be|must\s+be|be)\s+(['\"]?)([^.,;\n]+?)\1(?:[.,;\n]|$)",
+            re.IGNORECASE,
+        )
+        match = pattern_alt.search(text)
+        if match:
+            return match.group(2).strip()
+
+        pattern_use_as = re.compile(rf"(?:use|set|treat)\s+([^.,;\n]+?)\s+as\s+the\s+{name}", re.IGNORECASE)
+        match = pattern_use_as.search(text)
+        if match:
+            return match.group(1).strip().strip("'\"")
+
         return None
+
+    def _last_assistant_message(self, history: Sequence[ChatMessage]) -> Optional[str]:
+        for message in reversed(history or []):
+            if message.role == "assistant":
+                content = (message.content or "").strip()
+                if content:
+                    return content
+        return None
+
+    def _pending_tool_from_history(self, history: Sequence[ChatMessage]) -> Optional[str]:
+        for message in reversed(history or []):
+            if message.role != "assistant":
+                continue
+            metadata = message.metadata or {}
+            if not isinstance(metadata, dict):
+                continue
+            payload = metadata.get("payload")
+            if isinstance(payload, dict):
+                plan = payload.get("plan")
+                if isinstance(plan, dict):
+                    plan_meta = plan.get("_meta") or {}
+                    if isinstance(plan_meta, dict):
+                        for key in ("pending_retry_tool", "clarification_tool"):
+                            candidate = plan_meta.get(key)
+                            if candidate:
+                                canonical = self._canonical_tool_name(str(candidate))
+                                if canonical in _ALLOWED_TOOL_NAMES:
+                                    return canonical
+        return None
+
+    def _is_previous_answer_reference(self, value: str) -> bool:
+        lowered = (value or "").lower()
+        tokens = (
+            "previous answer",
+            "previous response",
+            "last answer",
+            "last response",
+            "prior answer",
+            "prior response",
+            "above answer",
+            "above response",
+        )
+        return any(token in lowered for token in tokens)
+
+    def _mentions_previous_answer(self, text: str, field: str) -> bool:
+        lowered = (text or "").lower()
+        if not lowered:
+            return False
+        reference_tokens = (
+            "previous answer",
+            "previous response",
+            "last answer",
+            "last response",
+            "prior answer",
+            "prior response",
+            "same as above",
+            "same as before",
+        )
+        if not any(token in lowered for token in reference_tokens):
+            return False
+        field_tokens = {field.lower()}
+        if field.lower() == "description":
+            field_tokens.update({"desc", "the description"})
+        if field.lower() == "body":
+            field_tokens.update({"body", "page body", "the body", "content", "page content"})
+        if field.lower() == "content":
+            field_tokens.update({"content", "page content", "body"})
+        return any(token in lowered for token in field_tokens)
+
+    def _looks_like_jira_field_dump(self, text: str) -> bool:
+        project = self._extract_project_key(text)
+        summary = self._extract_named_value(text, "summary")
+        description = self._extract_named_value(text, "description")
+        return bool(project and summary and description)
+
+    def _normalise_projects(self, projects: Sequence[str]) -> set[str]:
+        normalised: set[str] = set()
+        for project in projects or []:
+            if not project:
+                continue
+            candidate = str(project).strip()
+            if candidate:
+                normalised.add(candidate.upper())
+        return normalised
+
+    def _detect_denied_projects(self, req: ChatQueryReq, intent: ToolIntent) -> set[str]:
+        accessible = self._normalise_projects(self.user_claims.get("accessible_projects", []))
+        if not accessible:
+            return set()
+
+        requested: set[str] = set()
+        metadata = req.metadata or ChatMetadata()
+        requested.update(self._normalise_projects(metadata.targets))
+        project_from_prompt = self._extract_project_key(req.prompt)
+        if project_from_prompt:
+            requested.add(project_from_prompt.upper())
+        if intent.inferred_project:
+            requested.add(intent.inferred_project.upper())
+
+        allowed_tokens = {"GLOBAL"}
+        denied = {
+            project
+            for project in requested
+            if project and project not in accessible and project not in allowed_tokens
+        }
+        return denied
+
+    def _build_access_denied_message(self, denied_projects: Sequence[str]) -> str:
+        denied_sorted = sorted({project.upper() for project in denied_projects if project})
+        accessible = sorted(
+            project
+            for project in self._normalise_projects(self.user_claims.get("accessible_projects", []) or [])
+            if project != "GLOBAL"
+        )
+
+        denied_list = ", ".join(denied_sorted)
+        lines = [
+            "**Access restricted**",
+            f"I don't have access to project {denied_list}, so I can't help with that request.",
+        ]
+        if accessible:
+            lines.append("Projects I can access: " + ", ".join(accessible))
+        lines.append("Please reach out to a project owner or someone with the right permissions.")
+        return "\n".join(lines)
+
+    def _wants_empty_field(self, text: str, field: str) -> bool:
+        lowered = (text or "").lower()
+        if not lowered:
+            return False
+
+        field_aliases = {field.lower()}
+        if field.lower() == "description":
+            field_aliases.update({"desc", "the description"})
+
+        empty_tokens = ("empty", "blank", '""', "''", "none", "no", "omit", "without", "skip")
+
+        for alias in field_aliases:
+            alias = alias.strip()
+            if not alias:
+                continue
+            simple_checks = (
+                f"leave {alias} blank",
+                f"leave the {alias} blank",
+                f"leave {alias} empty",
+                f"leave the {alias} empty",
+                f"keep {alias} empty",
+                f"keep the {alias} empty",
+                f"{alias} should be empty",
+                f"{alias} should be blank",
+                f"{alias} must be empty",
+                f"{alias} must be blank",
+                f"{alias} can be empty",
+                f"no {alias}",
+                f"without {alias}",
+                f"omit {alias}",
+                f"skip the {alias}",
+                f"skip {alias}",
+                f"{alias} is empty",
+                f"{alias} is blank",
+                f"{alias} left empty",
+            )
+            for phrase in simple_checks:
+                if phrase in lowered:
+                    return True
+
+            pattern = re.compile(rf"{re.escape(alias)}\s*=\s*(?:\"\"|''|blank|empty|none|null)")
+            if pattern.search(lowered):
+                return True
+
+            for token in empty_tokens:
+                if not token.strip():
+                    continue
+                combo = f"{alias} {token}"
+                if combo in lowered:
+                    return True
+
+        return False
+
+    def _normalise_body_html(self, content: Optional[str]) -> Optional[str]:
+        if not content:
+            return None
+        stripped = content.strip()
+        if not stripped:
+            return None
+        if "<" in stripped and ">" in stripped:
+            return stripped
+
+        paragraphs = [segment.strip() for segment in re.split(r"\n\s*\n", stripped) if segment.strip()]
+        if not paragraphs:
+            return None
+
+        def _format(paragraph: str) -> str:
+            escaped = html.escape(paragraph)
+            return f"<p>{escaped.replace('\n', '<br />')}</p>"
+
+        return "".join(_format(paragraph) for paragraph in paragraphs)
 
     def _extract_title(self, text: str) -> Optional[str]:
         match = _TITLE_TITLED_PATTERN.search(text)
@@ -241,6 +515,7 @@ class ChatOrchestrator:
             friendly = {
                 "space": "space key",
                 "title": "title",
+                "body_html": "page body",
             }
             missing = [friendly.get(field, field) for field in missing_fields] or list(friendly.values())
             listing = ", ".join(missing)
@@ -272,9 +547,51 @@ class ChatOrchestrator:
         thread, resolved_req = self._prepare_thread_and_history(req)
         intent = self._detect_tool_intent(resolved_req)
 
+        denied_projects = self._detect_denied_projects(resolved_req, intent)
+        if denied_projects:
+            reply_md = self._build_access_denied_message(denied_projects)
+            plan_payload = {
+                "steps": [],
+                "output": {},
+                "_meta": {"denied_projects": sorted(denied_projects)},
+            }
+            chat_response = ChatResp(
+                reply_md=reply_md,
+                plan=plan_payload,
+                artifacts={},
+                output={},
+                actions=[],
+                sources=[],
+                two_week_plan=[],
+                pending_fields=None,
+                message=reply_md,
+                thread_id=thread.id,
+                thread_title=thread.title,
+            )
+
+            self._persist_turn(
+                thread=thread,
+                user_prompt=req.prompt,
+                reply_md=reply_md,
+                response_payload={
+                    "plan": plan_payload,
+                    "artifacts": {},
+                    "output": {},
+                    "actions": [],
+                    "sources": [],
+                },
+                req=req,
+            )
+
+            return chat_response
+
         if intent.tool and intent.explicit and intent.missing_fields:
             clarification = self._build_clarification_message(intent.tool, intent.missing_fields)
-            plan_payload = {"steps": [], "output": {}, "_meta": {"clarification_tool": intent.tool}}
+            plan_payload = {
+                "steps": [],
+                "output": {},
+                "_meta": {"clarification_tool": intent.tool, "pending_retry_tool": intent.tool},
+            }
             chat_response = ChatResp(
                 reply_md=clarification,
                 plan=plan_payload,
@@ -388,6 +705,12 @@ class ChatOrchestrator:
             )
             reply_md = "\n".join(lines)
 
+            plan_meta = plan.setdefault("_meta", {})
+            intent_tool = plan_meta.get("intent_tool")
+            if intent_tool and not plan_meta.get("pending_retry_tool"):
+                canonical = self._canonical_tool_name(intent_tool) or intent_tool
+                plan_meta["pending_retry_tool"] = canonical
+
             payload_plan = jsonable_encoder(plan)
             pending_fields = {
                 "code": detail.get("code"),
@@ -469,6 +792,8 @@ class ChatOrchestrator:
             meta.setdefault("intent_title", intent.title)
         if intent.space:
             meta.setdefault("space_key", intent.space)
+        if intent.body_html:
+            meta.setdefault("intent_body_html", intent.body_html)
 
         targets, include_rosetta, known_projects = self._derive_retrieval_targets(req)
         self._ensure_rag_steps(req, plan, targets, include_rosetta, known_projects)
@@ -564,6 +889,7 @@ class ChatOrchestrator:
                 "space": intent.space,
                 "space_key": intent.space,
                 "title": intent.title,
+                "body_html": intent.body_html,
             }
         elif intent.tool == "staffing_recommend":
             base = {
