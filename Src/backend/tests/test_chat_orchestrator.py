@@ -342,6 +342,66 @@ def test_chat_orchestrator_blocks_inaccessible_project(
     assert resp.actions == []
 
 
+def test_chat_orchestrator_executes_jira_for_field_dump(
+    monkeypatch: pytest.MonkeyPatch,
+    client,  # noqa: F841 - ensures app initialises DB
+    db_session,
+    user_claims: dict[str, object],
+) -> None:
+    orchestrator = ChatOrchestrator(user_claims=user_claims, db=db_session)
+
+    plan_template = {
+        "steps": [
+            {
+                "tool": "rag_search",
+                "args": {"query": "reate a jira ticket", "targets": ["PX"], "k": 12},
+            }
+        ],
+        "output": {"summary": "Created Jira epic", "gaps": [], "two_week_plan": [], "notes": ""},
+        "_meta": {},
+    }
+
+    def fake_register_all_tools() -> None:
+        return None
+
+    def fake_create_plan(prompt: str, allowed_tools: list[str] | None = None) -> dict[str, object]:
+        return copy.deepcopy(plan_template)
+
+    def fake_execute_plan(plan: dict[str, object], *_args, **_kwargs) -> dict[str, object]:
+        tools = [step.get("tool") for step in plan.get("steps", [])]
+        assert "jira_epic" in tools, f"jira_epic missing from plan steps: {plan}"
+        return {
+            "artifacts": {
+                "step_1:rag_search": {
+                    "results": [],
+                    "fallback_message": None,
+                    "evidence": None,
+                },
+                "step_2:jira_epic": {
+                    "key": "PX-101",
+                    "url": "https://example.atlassian.net/browse/PX-101",
+                },
+            },
+            "output": plan.get("output", {}),
+        }
+
+    def fake_generate_chat_response(messages: list[dict[str, str]], temperature: float = 0.2, max_tokens: int | None = 700) -> str:
+        return "Ticket created successfully."
+
+    monkeypatch.setattr("app.services.chat_orchestrator.agent_tools.register_all_tools", fake_register_all_tools)
+    monkeypatch.setattr("app.services.chat_orchestrator.create_plan", fake_create_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.execute_plan", fake_execute_plan)
+    monkeypatch.setattr("app.services.chat_orchestrator.generate_chat_response", fake_generate_chat_response)
+
+    req = ChatQueryReq(prompt="reate a jira ticket with project key px, summary as bobo, and description as gogo for the user dev_alex")
+
+    resp = orchestrator.handle(req)
+
+    assert "PX-101" in resp.reply_md
+    assert any(step.get("tool") == "jira_epic" for step in resp.plan.get("steps", []))
+    assert resp.artifacts.get("step_2:jira_epic", {}).get("key") == "PX-101"
+
+
 def test_chat_orchestrator_reports_staffing_recommendation(
     monkeypatch: pytest.MonkeyPatch,
     client,  # noqa: F841 - ensures app initialises DB

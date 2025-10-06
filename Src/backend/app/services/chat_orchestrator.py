@@ -252,6 +252,7 @@ class ChatOrchestrator:
             r"project_key\s*(?:=|:|is)\s*['\"]?([A-Za-z][A-Za-z0-9_-]{1,30})['\"]?",
             r"project\s*(?:=|:|is)\s*['\"]?([A-Za-z][A-Za-z0-9_-]{1,30})['\"]?",
             r"for\s+project\s+([A-Za-z][A-Za-z0-9_-]{1,30})",
+            r"project\s*key\s+([A-Za-z][A-Za-z0-9_-]{1,30})",
         ]
         for pattern in key_patterns:
             match = re.search(pattern, text, re.IGNORECASE)
@@ -274,6 +275,11 @@ class ChatOrchestrator:
             re.IGNORECASE,
         )
         match = pattern_alt.search(text)
+        if match:
+            return match.group(2).strip()
+
+        pattern_as = re.compile(rf"{name}\s+as\s+(['\"]?)([^.,;\n]+?)\1", re.IGNORECASE)
+        match = pattern_as.search(text)
         if match:
             return match.group(2).strip()
 
