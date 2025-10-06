@@ -1,11 +1,18 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
 import { Panel } from "@/components/ui/panel";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { api, CandidateType } from "@/lib/api";
+
+type Candidate = { id: number; name: string; fit: number; skills: string[] };
+
+const CANDIDATES: Candidate[] = [
+  { id: 23, name: "Aisha Patel", fit: 0.88, skills: ["react","fastapi","qdrant"] },
+  { id: 42, name: "Jordan Alvarez", fit: 0.79, skills: ["python","nextjs","qdrant"] },
+  { id: 17, name: "Mei Chen", fit: 0.74, skills: ["react","typescript"] },
+  { id: 58, name: "Noah Williams", fit: 0.70, skills: ["python","fastapi"] }
+];
 
 export default function IntelliStaff() {
   const [project, setProject] = useState("PX");
@@ -13,30 +20,13 @@ export default function IntelliStaff() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<number[]>([]);
 
-  const trimmedQuery = query.trim();
-
-  const { data, isLoading, isError, error } = useQuery<CandidateType[]>({
-    queryKey: ["intellistaff-candidates", project, skill, trimmedQuery],
-    queryFn: () => api.listCandidates({ project, skill, search: trimmedQuery || undefined }),
-    staleTime: 60_000
-  });
-
-  const candidates = useMemo(() => data ?? [], [data]);
-
-  useEffect(() => {
-    setSelected(prev => prev.filter(id => candidates.some(candidate => candidate.id === id)));
-  }, [candidates]);
-
-  const filtered = useMemo(() => {
-    const lowerSearch = trimmedQuery.toLowerCase();
-    return candidates
+  const filtered = useMemo(()=> CANDIDATES
       .filter(c => !skill || c.skills.includes(skill))
-      .filter(c => !trimmedQuery || `${c.id}`.includes(trimmedQuery) || c.name.toLowerCase().includes(lowerSearch))
-      .sort((a, b) => b.fit - a.fit);
-  }, [candidates, skill, trimmedQuery]);
+      .filter(c => !query || `${c.id}`.includes(query.trim()))
+      .sort((a,b)=> b.fit-a.fit), [skill, query]);
 
-  const allVisibleIds = filtered.map(c => c.id);
-  const allSelectedVisible = allVisibleIds.every(id => selected.includes(id)) && allVisibleIds.length > 0;
+  const allVisibleIds = filtered.map(c=>c.id);
+  const allSelectedVisible = allVisibleIds.every(id => selected.includes(id)) && allVisibleIds.length>0;
   const toggleOne = (id: number) => setSelected(prev=> prev.includes(id) ? prev.filter(x=>x!==id) : [...prev,id]);
   const toggleAllVisible = () => setSelected(prev=> allSelectedVisible ? prev.filter(x=>!allVisibleIds.includes(x)) : Array.from(new Set([...prev, ...allVisibleIds])));
 
@@ -78,21 +68,10 @@ export default function IntelliStaff() {
             <input aria-label="Select all visible" type="checkbox" checked={allSelectedVisible} onChange={toggleAllVisible} />
             <div className="text-sm text-meta">{selected.length} selected</div>
           </div>
-          <div className="text-sm text-meta">{isLoading ? "Loading…" : `${filtered.length} candidates`}</div>
+          <div className="text-sm text-meta">{filtered.length} candidates</div>
         </div>
         <div className="divide-y divide-white/10">
-          {isLoading && (
-            <div className="p-6 text-center text-sm text-meta">Fetching candidates…</div>
-          )}
-          {isError && !isLoading && (
-            <div className="p-6 text-center text-sm text-destructive">
-              {(error instanceof Error ? error.message : "Unable to load candidates")}
-            </div>
-          )}
-          {!isLoading && !isError && filtered.length === 0 && (
-            <div className="p-6 text-center text-sm text-meta">No candidates match your filters.</div>
-          )}
-          {!isLoading && !isError && filtered.map((c)=> (
+          {filtered.map((c)=> (
             <div key={c.id} className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
