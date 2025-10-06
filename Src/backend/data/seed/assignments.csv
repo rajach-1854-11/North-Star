@@ -1,2 +1,5 @@
-id,developer_id,project_id,role,start_date,active
-1,1,1,DEV,2025-09-15,True
+username,project_key,role,status
+dev_alex,PX,Engineer,active
+dev_bianca,PB,Solution Architect,active
+dev_riley,PX,Backend Lead,active
+dev_samir,PB,Data Engineer,active

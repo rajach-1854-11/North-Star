@@ -1,4 +1,9 @@
-id,username,email,full_name,role,tenant_id,password_plain,password_bcrypt
-1,po_admin,po_admin@tenant1.example,Priya Oberoi,PO,1,x,$2b$12$lywv18iPx5vlw/Q02cIs1uEAubAxpWK1vGKK6Vk.sEHmU2TSWOh/e
-2,ba_nancy,nancy.ba@tenant1.example,Nancy Shah,BA,1,x,$2b$12$mrH/RlTkDG2WFJHFIyapWewDizG3Yab7fDYvDgUMKuL7Yjme0HMhu
-3,dev_alex,alex.dev@tenant1.example,Alex Kumar,DEV,1,x,$2b$12$14/LTC5ANUTNMbmBB3K0KO7npWRIRk15ZQctd7gTH7GBG0b2SB36K
+username,role,password_hash
+admin_root,Admin,x
+po_admin,PO,x
+ba_anita,BA,x
+ba_nancy,BA,x
+dev_alex,Dev,x
+dev_bianca,Dev,x
+dev_riley,Dev,x
+dev_samir,Dev,x

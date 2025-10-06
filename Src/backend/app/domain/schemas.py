@@ -160,6 +160,7 @@ class StaffCandidate(BaseModel):
     fit: float
     factors: Dict[str, float]
     availability: Dict[str, Any]
+    skill_gaps: List[Dict[str, Any]] = Field(default_factory=list)
     explanations: List[str]
 
 

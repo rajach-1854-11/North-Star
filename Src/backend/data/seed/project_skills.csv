@@ -1,12 +1,12 @@
-id,project_id,skill_id,importance
-1,1,1,5
-2,1,2,5
-3,1,4,5
-4,1,5,5
-5,1,7,4
-6,1,6,3
-7,2,1,4
-8,2,3,5
-9,2,6,5
-10,2,7,4
-11,2,10,3
+project_key,skill_name,importance
+PX,Python,0.9
+PX,FastAPI,0.8
+PX,Redis,0.7
+PX,Qdrant,0.7
+PX,OAuth2 / JWT,0.6
+PX,RBAC,0.6
+PB,Python,0.8
+PB,PostgreSQL,0.8
+PB,RBAC,0.7
+PB,OAuth2 / JWT,0.7
+PB,Docker,0.6

@@ -7,6 +7,9 @@ import re
 from typing import Any, Dict, Iterable, List, Sequence
 
 
+EMPTY_VALUE_SENTINEL = "__agentic_empty__"
+
+
 REQUIRED_TOOL_FIELDS: Dict[str, List[str]] = {
     "jira_epic": ["summary", "description", "description_text"],
     "confluence_page": ["title", "body_html"],

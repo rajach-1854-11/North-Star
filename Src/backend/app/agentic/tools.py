@@ -23,7 +23,7 @@ from app.ports.staffing import recommend_staff as recommend_staff_port
 from app.schemas.publish import PublishConfluenceRequest, PublishJiraRequest
 from worker.handlers.evidence_builder import to_confluence_html
 
-from .utility import local_extract_for_fields, validate_tool_args
+from .utility import EMPTY_VALUE_SENTINEL, local_extract_for_fields, validate_tool_args
 
 
 def _validation_error_to_http(exc: ValidationError) -> HTTPException:
@@ -130,8 +130,11 @@ def jira_epic_tool(
             },
         )
 
-    summary_value = (summary or "").strip()
-    description_value = (description_text or description or "").strip()
+    summary_raw = summary or ""
+    description_raw = description_text or description or ""
+
+    summary_value = summary_raw.strip()
+    description_value = description_raw.strip()
 
     validation = validate_tool_args(
         "jira_epic",
@@ -193,6 +196,9 @@ def jira_epic_tool(
                     "reply_md": "\n".join(reply_lines),
                 },
             )
+
+    if description_value == EMPTY_VALUE_SENTINEL:
+        description_value = ""
 
     try:
         request = PublishJiraRequest(

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
+from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
 from sqlalchemy.orm import Session
@@ -11,6 +13,9 @@ from app import deps
 from app.config import settings
 from app.domain import models as m
 from app.utils.passwords import hash_password, verify_password
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_or_create_user(db: Session, *, tenant_id: str, username: str, role: str, password: str) -> m.User:
@@ -73,6 +78,63 @@ def ensure_seed_data() -> None:
     """Create deterministic seed data if the database is empty."""
 
     tenant_id = settings.tenant_id
+
+    with deps.SessionLocal() as db:
+        tenant = db.query(m.Tenant).filter(m.Tenant.id == tenant_id).one_or_none()
+        if tenant is None:
+            db.add(m.Tenant(id=tenant_id, name="North Star Demo Tenant"))
+
+        for username, role in ("admin_root", "Admin"), ("ba_anita", "BA"):
+            _get_or_create_user(db, tenant_id=tenant_id, username=username, role=role, password="x")
+
+        developer_count = (
+            db.query(m.Developer)
+            .filter(m.Developer.tenant_id == tenant_id)
+            .count()
+        )
+        db.commit()
+
+    if developer_count >= 4:
+        return
+
+    if _seed_using_csv_directory(tenant_id):
+        return
+
+    _seed_legacy_defaults(tenant_id)
+
+
+def _seed_using_csv_directory(tenant_id: str) -> bool:
+    """Seed data using the CSV fixtures when available. Returns True on success."""
+
+    seed_dir = Path(__file__).resolve().parents[2] / "data" / "seed"
+    if not seed_dir.exists():
+        return False
+
+    from app.scripts import data_seeder
+
+    # Ensure the CSV seeder runs against the currently active session factory.
+    # During tests we swap ``deps.SessionLocal`` to an in-memory SQLite engine,
+    # but the seeder module caches the original factory at import time. Wiring
+    # it here keeps the fixtures and the seeder in sync.
+    if hasattr(data_seeder, "set_session_factory"):
+        data_seeder.set_session_factory(deps.SessionLocal)
+    else:  # pragma: no cover - defensive fallback for older builds
+        data_seeder.SessionLocal = deps.SessionLocal  # type: ignore[attr-defined]
+
+    context = data_seeder.SeederContext(tenant_id=tenant_id, dry_run=False, allow_update=True)
+    try:
+        data_seeder._process_directory(seed_dir, context)
+    except data_seeder.SeederError as exc:
+        logger.warning("CSV seed processing failed, falling back to legacy defaults: %s", exc)
+        return False
+    except Exception:  # pragma: no cover - unexpected failure path
+        logger.exception("Unexpected error during CSV seed processing")
+        return False
+    return True
+
+
+def _seed_legacy_defaults(tenant_id: str) -> None:
+    """Fallback seeding path preserved for environments without CSV fixtures."""
 
     with deps.SessionLocal() as db:
         if db.query(m.Tenant).filter(m.Tenant.id == tenant_id).one_or_none() is None:

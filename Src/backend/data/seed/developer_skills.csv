@@ -1,7 +1,25 @@
-id,developer_id,skill_id,level
-1,1,1,5
-2,1,2,4
-3,1,4,4
-4,1,5,3
-5,1,6,3
-6,1,7,3
+username,skill_name,score,confidence
+dev_alex,Python,0.85,0.8
+dev_alex,FastAPI,0.8,0.75
+dev_alex,Redis,0.7,0.7
+dev_alex,Qdrant,0.65,0.7
+dev_alex,RBAC,0.6,0.7
+dev_alex,OAuth2 / JWT,0.6,0.7
+dev_bianca,PostgreSQL,0.88,0.85
+dev_bianca,RBAC,0.82,0.8
+dev_bianca,OAuth2 / JWT,0.78,0.75
+dev_bianca,Jira,0.7,0.7
+dev_bianca,Confluence,0.72,0.7
+dev_bianca,Docker,0.65,0.65
+dev_riley,Python,0.9,0.85
+dev_riley,FastAPI,0.88,0.83
+dev_riley,Redis,0.82,0.8
+dev_riley,Qdrant,0.75,0.72
+dev_riley,TypeScript,0.6,0.6
+dev_riley,GitHub Actions,0.68,0.65
+dev_samir,Python,0.78,0.74
+dev_samir,PostgreSQL,0.86,0.82
+dev_samir,Qdrant,0.8,0.76
+dev_samir,Redis,0.74,0.7
+dev_samir,GitHub Actions,0.7,0.68
+dev_samir,Docker,0.72,0.7

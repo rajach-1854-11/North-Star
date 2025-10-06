@@ -1,13 +1,13 @@
-id,key,name
-1,python,Python
-2,fastapi,FastAPI
-3,postgres,PostgreSQL
-4,redis,Redis
-5,qdrant,Qdrant
-6,rbac,RBAC
-7,oauth2,OAuth2 / JWT
-8,jira,Jira
-9,confluence,Confluence
-10,docker,Docker
-11,gha,GitHub Actions
-12,typescript,TypeScript
+name,parent,importance
+Python,,0.8
+FastAPI,Python,0.6
+PostgreSQL,,0.7
+Redis,,0.6
+Qdrant,,0.6
+RBAC,,0.5
+OAuth2 / JWT,,0.5
+Jira,,0.5
+Confluence,,0.5
+Docker,,0.6
+GitHub Actions,,0.5
+TypeScript,,0.5

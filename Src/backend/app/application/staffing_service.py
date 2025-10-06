@@ -41,6 +41,16 @@ def rank_candidates(db: Session, tenant_id: str, project: m.Project) -> List[Dic
     developers = db.query(m.Developer).filter(m.Developer.tenant_id == tenant_id).all()
     requirements = get_project_required_skills(db, project.id)
 
+    requirement_paths = list(requirements.keys())
+    skill_labels: Dict[str, str] = {}
+    if requirement_paths:
+        rows = (
+            db.query(m.Skill.path_cache, m.Skill.name)
+            .filter(m.Skill.path_cache.in_(requirement_paths))
+            .all()
+        )
+        skill_labels = {path: name for path, name in rows}
+
     results: List[Dict[str, object]] = []
     for developer in developers:
         vector = get_dev_skill_vector(db, developer.id)
@@ -65,7 +75,24 @@ def rank_candidates(db: Session, tenant_id: str, project: m.Project) -> List[Dic
         fit = 0.40 * project_similarity + 0.30 * proven + 0.20 * recency + 0.10 * availability
 
         gaps = project_skill_gap(db, developer_id=developer.id, project_id=project.id)
-        gap_lines = [f"Gap #{index + 1}: {path} (Δ={gap:.2f})" for index, (path, gap) in enumerate(gaps[:3])]
+        gap_entries: List[Dict[str, object]] = []
+        for index, (path, gap) in enumerate(gaps[:3]):
+            display = skill_labels.get(path)
+            if not display and path:
+                display = path.split('.')[-1]
+            gap_entries.append(
+                {
+                    "rank": index + 1,
+                    "path": path,
+                    "name": display or path,
+                    "gap": round(gap, 2),
+                }
+            )
+
+        gap_lines = [
+            f"Gap #{entry['rank']}: {entry['name']} (Δ={entry['gap']:.2f})"
+            for entry in gap_entries
+        ]
 
         results.append(
             {
@@ -78,6 +105,7 @@ def rank_candidates(db: Session, tenant_id: str, project: m.Project) -> List[Dic
                     "availability": round(availability, 3),
                 },
                 "availability": {"earliest_start": None, "percent_free": 0.5},
+                "skill_gaps": gap_entries,
                 "explanations": [
                     "Project similarity is cosine over hierarchical skill paths.",
                     "Proven skill coverage is overlap against required weights.",
