@@ -118,7 +118,7 @@ I built the platform on a secure, multi-tenant RAG architecture. A planning agen
 
 ### Agentic Orchestrator (No LangChain)
 
-North Star uses a custom planner/executor instead of LangChain to guarantee multi-tenant RBAC, policy-gated tool use, and compliance-grade auditing.
+I built North Star with a custom planner/executor instead of LangChain to guarantee multi-tenant RBAC, policy-gated tool use, and compliance-grade auditing.
 
 **Why no LangChain?** I needed deterministic control over tool routing, tenant isolation, and audits. Those guarantees are easier with a minimal, explicit loop than a generic agent framework.
 
