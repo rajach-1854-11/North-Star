@@ -67,7 +67,7 @@ The platform is built on a secure, multi-tenant RAG architecture. A planning age
 - [Table Dictionary](DesignDocs/ERD/ERD_Table_Dictionary.md)
 
 ### Inventory Snapshot
-- HTTP endpoints discovered: **18**
+- HTTP endpoints avialable: **18**
 - Background handlers: **9**
 - Machine-readable asset map: [inventory.json](inventory.json)
 
