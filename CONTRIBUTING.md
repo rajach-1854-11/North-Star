@@ -1,6 +1,7 @@
 # Contributing to **North Star**
 
-“authored by me + AI assistant” - I designed this to ensure co pilot agent behaviour and to prevent mistakes.
+> Authored by me with the assistance of an AI pair-programmer (Copilot).  
+> This document was intentionally designed to guide consistent Copilot Agent behavior and prevent architectural or RBAC violations during generation.
 
 > **Where to put this file?**
 >
