@@ -16,7 +16,7 @@ North Star acts as an intelligent co-pilot for engineering leadership. It uses a
 ### Core Features
 - **Strategic Staffing (IntelliStaff):** Recommends the best-suited engineers for new projects by analyzing their proven, evidence-based skills.
 - **Personalized Onboarding (Aurora):** Automatically generates custom learning plans by comparing a new project's codebase with prior work, slashing time-to-productivity.
-- **Continuous Skill Intelligence (IntelliStaff):** Passively analyzes code commits and design documents to build a dynamic, real-time "Talent Graph" of the organization's capabilities.
+- **Continuous Skill Intelligence (IntelliStaff):** Passively analyzes PRs submitted, reviews required, comments received, rereviews(churn rate) and jira ticket closed to build a dynamic, real-time "Talent Graph" of the organization's capabilities.
 
 ### How It Works
 The platform is built on a secure, multi-tenant RAG architecture. A planning agent deconstructs requests, and an execution agent retrieves context from project-specific knowledge bases to inform its analysis and actions, such as creating Jira epics or Confluence pages.
@@ -35,6 +35,7 @@ The platform is built on a secure, multi-tenant RAG architecture. A planning age
 2. [Technical Deep Dive](#technical-deep-dive)
 	- [End-to-End Request Flow](#end-to-end-request-flow)
 	- [Module Breakdown](#module-breakdown)
+	- [Skill Graph Attribution](#skill-graph-attribution)
 	- [Policies & Identity](#policies--identity)
 	- [Persistence & Storage](#persistence--storage)
 	- [Configuration Matrix](#configuration-matrix)
@@ -113,6 +114,12 @@ The platform is built on a secure, multi-tenant RAG architecture. A planning age
 - **Adapters:** Integrations across GitHub, Jira, Confluence, Qdrant, LLM providers.
 - **Ports:** Interfaces consumed by services for substitution-friendly architecture.
 - **Worker:** Job queue orchestrators and webhook processors.
+
+### Skill Graph Attribution
+- GitHub webhooks (PRs, reviews, comments) resolve repository mappings and developer identity per tenant/project, triaging any unknown repo or user so events are never silently dropped.
+- Each event appends evidence to an `AttributionWorkflow`; finalization is idempotent and gated on “PR merged” plus the linked Jira issue moving to a configurable done state.
+- Once finalized, we upsert developer skill deltas (score, confidence, evidence reference, last-seen) via `worker.handlers.skill_extractor.apply_skill_delta`, ensuring the talent graph reflects the latest proof.
+- Every finalize emits tenant-tagged metrics/logs for observability, making drift and throughput visible to ops teams.
 
 ### Policies & Identity
 - RBAC and the policy bus reside in `app/policy/`.
