@@ -1,5 +1,7 @@
 # Contributing to **North Star**
 
+“authored by me + AI assistant” - I designed this to ensure co pilot agent behaviour and to prevent mistakes.
+
 > **Where to put this file?**
 >
 > Place this `CONTRIBUTING.md` **at the root of your repository** — the same folder you open with `code .` (e.g., your `northstar/` folder). This ensures GitHub, Cursor, and other tools surface it automatically. Put your `.cursorrules` in this same root as well.
