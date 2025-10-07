@@ -53,6 +53,7 @@ The platform is built on a secure, multi-tenant RAG architecture. A planning age
 - FastAPI HTTP APIs for staffing, onboarding, retrieval, and audit flows.
 - RQ-backed worker for GitHub/Jira ingestion and skill attribution.
 - Policy enforcement, identity resolution, and agentic planner components.
+- **Agentic layer:** Custom planner/executor with a centralized policy bus (RBAC), per-tenant isolation, and immutable audits. No LangChain. Intent is rule-based (regex allow-list); ambiguous requests fall back to read-only RAG. (Optional LLM-assisted intent is advisory only, behind RBAC + schema checks.)
 
 ### Personas
 - **Platform Admin:** Configures policies, integrations, and reviews audits.
@@ -114,6 +115,40 @@ The platform is built on a secure, multi-tenant RAG architecture. A planning age
 - **Adapters:** Integrations across GitHub, Jira, Confluence, Qdrant, LLM providers.
 - **Ports:** Interfaces consumed by services for substitution-friendly architecture.
 - **Worker:** Job queue orchestrators and webhook processors.
+
+### Agentic Orchestrator (No LangChain)
+
+North Star uses a custom planner/executor instead of LangChain to guarantee multi-tenant RBAC, policy-gated tool use, and compliance-grade auditing.
+
+**Why no LangChain?** We needed deterministic control over tool routing, tenant isolation, and audits. Those guarantees are easier with a minimal, explicit loop than a generic agent framework.
+
+**What we built:**
+
+- **Central policy bus:** every tool call goes through `policy_bus.enforce(tool, role)` (deny-by-default).
+- **Tool registry at startup:** `register_all_tools()`, no dynamic exec.
+- **Tenant isolation:** per-tenant Qdrant collections; ports re-check tenant on every read/write.
+- **Immutable audits:** every ALLOW/DENY emits an audit record (zero side effects on DENY).
+
+**Intent detection (current):** rule-based, not LLM.
+- Regex triggers (e.g. `jira_epic`, `confluence_page`) + light parsing.
+- Ambiguous phrases (e.g. "jira") fall back to read-only RAG.
+- This is intentional hard-gating to prevent accidental writes.
+
+**Example (intent → gated tool):**
+```python
+# chat_orchestrator.py (simplified)
+if _JIRA_TRIGGER.search(lowered):      # requires explicit 'jira_epic'
+    tool = "jira_epic"; explicit = True
+elif _CONFLUENCE_TRIGGER.search(lowered):
+    tool = "confluence_page"; explicit = True
+else:
+    tool = None  # falls back to read-only RAG
+
+# Planner will only execute registered tools after:
+policy_bus.enforce(tool, user.role)    # deny-by-default
+```
+
+**Summary:** We run an allow-list, regex-gated, audited agentic loop with strict RBAC. No LangChain is used.
 
 ### Skill Graph Attribution
 - GitHub webhooks (PRs, reviews, comments) resolve repository mappings and developer identity per tenant/project, triaging any unknown repo or user so events are never silently dropped.
