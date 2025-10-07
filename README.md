@@ -29,6 +29,9 @@ The platform is built on a secure, multi-tenant RAG architecture. A planning age
 	- [Diagram Index](#diagram-index)
 	- [Inventory Snapshot](#inventory-snapshot)
 	- [Navigation Tips](#navigation-tips)
+	- [Frontend Stack & Location](#frontend-stack--location)
+	- [Backend Quickstart](#backend-quickstart)
+	- [Glossary](#glossary)
 2. [Technical Deep Dive](#technical-deep-dive)
 	- [End-to-End Request Flow](#end-to-end-request-flow)
 	- [Module Breakdown](#module-breakdown)
@@ -37,6 +40,7 @@ The platform is built on a secure, multi-tenant RAG architecture. A planning age
 	- [Configuration Matrix](#configuration-matrix)
 	- [Observability](#observability)
 	- [Testing](#testing)
+	- [Red-Team Tests & Enforcement — Implementation Summary](#red-team-tests--enforcement--implementation-summary)
 	- [Operations](#operations)
 3. [UX Feature Compendium](#ux-feature-compendium)
 
@@ -55,17 +59,21 @@ The platform is built on a secure, multi-tenant RAG architecture. A planning age
 - **Developer:** Consumes onboarding tasks and skill insights.
 
 ### Diagram Index
-- [C1 – Context](C4/C1_Context.md)
-- [C2 – Containers](C4/C2_Containers.md)
-- [C3 – Components](C4/C3_Components.md)
-- [C4 – Code](C4/C4_Code.md)
-- [ERD](ERD/ERD.md)
-- [Table Dictionary](ERD/ERD_Table_Dictionary.md)
+- [C1 – Context](DesignDocs/C4/C1_Context.md)
+- [C2 – Containers](DesignDocs/C4/C2_Containers.md)
+- [C3 – Components](DesignDocs/C4/C3_Components.md)
+- [C4 – Code](DesignDocs/C4/C4_Code.md)
+- [ERD](DesignDocs/ERD/ERD.md)
+- [Table Dictionary](DesignDocs/ERD/ERD_Table_Dictionary.md)
 
 ### Inventory Snapshot
 - HTTP endpoints discovered: **18**
 - Background handlers: **9**
 - Machine-readable asset map: [inventory.json](inventory.json)
+
+### Frontend Stack & Location
+- **Stack:** Next.js 14 (App Router) + TypeScript; Tailwind CSS (Deep Space/Graphite theme); shadcn/ui; lucide-react; Framer Motion; Recharts; React Query; ky (30s timeout, one retry, JWT auto-attach); zod; jotai; React Hook Form.
+- **Repo path:** `main-frontend/` (all UI code and pages).
 
 ### Navigation Tips
 - Start with the C1→C4 diagrams for progressively deeper architectural views.
@@ -139,6 +147,32 @@ The platform is built on a secure, multi-tenant RAG architecture. A planning age
 - Run `pytest` from `North-Star/Src/backend` for the full suite.
 - Integration fixtures live under `tests/` and `skill_tests/`.
 - Use `.env.local` to override secrets for test runs—autoloaded by the settings loader.
+
+### Red-Team Tests & Enforcement — Implementation Summary
+
+1. **Tenant Isolation Negative Tests**  
+	_Implementation:_ Cross-tenant retrieval and publish attempts return explicit policy errors, preventing data exfiltration.  
+	_Files:_ `Src/backend/tests/test_security.py`; `app/policy/`
+
+2. **Policy-Gated Tool Use**  
+	_Implementation:_ Planner requests are denied unless the tool is whitelisted, with denials fully audited and side effects blocked.  
+	_Files:_ `Src/backend/app/ports/planner.py`; `Src/backend/tests/test_planner_sanitization.py`
+
+3. **Ingestion Replay Safety**  
+	_Implementation:_ Duplicate and out-of-order webhook deliveries short-circuit safely via idempotency checks.  
+	_Files:_ `Src/backend/app/application/ingestion_service.py`; `tests/test_github_webhook.py`; `tests/test_jira_webhook.py`
+
+4. **RBAC Proofs**  
+	_Implementation:_ Table-driven role checks ensure only authorized personas can reach each API surface.  
+	_Files:_ `Src/backend/tests/test_security.py`; `app/policy/`
+
+5. **Budget/Backpressure**  
+	_Implementation:_ Per-tenant concurrency caps and request budgets defend against resource exhaustion during hostile load.  
+	_Files:_ `app/services/`; worker/adapters (see scaling notes in this README)
+
+6. **Traceability**  
+	_Implementation:_ End-to-end traces link planner steps, adapters, and worker activity for audit replay.  
+	_Files:_ `app/instrumentation/`; `app/domain/models.py::AuditLog`; `Src/backend/tests/test_planner_sanitization.py`
 
 ### Operations
 - Deploy the API behind nginx (see `docker-compose.yml`).
