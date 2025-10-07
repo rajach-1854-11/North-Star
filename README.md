@@ -1,6 +1,6 @@
 # North Star Architecture & Experience Compendium
 
-This comprehensive README unifies the architecture overview, technical deep dive, and UX feature catalogue for North Star. Regenerate the full pack from source any time with `scripts/generate_arch_docs.py`.
+This comprehensive README unifies the architecture overview, technical deep dive, and UX feature catalogue for North Star. You can regenerate the full pack from source any time with `scripts/generate_arch_docs.py`.
 
 ## Executive Summary
 
@@ -19,7 +19,7 @@ North Star acts as an intelligent co-pilot for engineering leadership. It uses a
 - **Continuous Skill Intelligence (IntelliStaff):** Passively analyzes PRs submitted, reviews required, comments received, rereviews(churn rate) and jira ticket closed to build a dynamic, real-time "Talent Graph" of the organization's capabilities.
 
 ### How It Works
-The platform is built on a secure, multi-tenant RAG architecture. A planning agent deconstructs requests, and an execution agent retrieves context from project-specific knowledge bases to inform its analysis and actions, such as creating Jira epics or Confluence pages.
+I built the platform on a secure, multi-tenant RAG architecture. A planning agent deconstructs requests, and an execution agent retrieves context from project-specific knowledge bases to inform its analysis and actions, such as creating Jira epics or Confluence pages.
 
 
 ## Table of Contents
@@ -120,9 +120,9 @@ The platform is built on a secure, multi-tenant RAG architecture. A planning age
 
 North Star uses a custom planner/executor instead of LangChain to guarantee multi-tenant RBAC, policy-gated tool use, and compliance-grade auditing.
 
-**Why no LangChain?** We needed deterministic control over tool routing, tenant isolation, and audits. Those guarantees are easier with a minimal, explicit loop than a generic agent framework.
+**Why no LangChain?** I needed deterministic control over tool routing, tenant isolation, and audits. Those guarantees are easier with a minimal, explicit loop than a generic agent framework.
 
-**What we built:**
+**What I built:**
 
 - **Central policy bus:** every tool call goes through `policy_bus.enforce(tool, role)` (deny-by-default).
 - **Tool registry at startup:** `register_all_tools()`, no dynamic exec.
@@ -148,7 +148,7 @@ else:
 policy_bus.enforce(tool, user.role)    # deny-by-default
 ```
 
-**Summary:** We run an allow-list, regex-gated, audited agentic loop with strict RBAC. No LangChain is used.
+**Summary:** I run an allow-list, regex-gated, audited agentic loop with strict RBAC. No LangChain is used.
 
 ### Skill Graph Attribution
 - GitHub webhooks (PRs, reviews, comments) resolve repository mappings and developer identity per tenant/project, triaging any unknown repo or user so events are never silently dropped.
