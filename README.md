@@ -57,8 +57,9 @@ I built the platform on a secure, multi-tenant RAG architecture. A planning agen
 
 ### Personas
 - **Platform Admin:** Configures policies, integrations, and reviews audits.
-- **Project Lead:** Requests onboarding plans and checks staffing readiness.
-- **Developer:** Consumes onboarding tasks and skill insights.
+- **Product Owner(PO):** Requests onboarding plans and checks staffing readiness.
+- **Business Analyst(BA):** Monitors teams performance, access project related data, can view teams skill profiles.
+- **Developer:** Consumes onboarding tasks and self skill insights.
 
 ### Diagram Index
 - [C1 – Context](DesignDocs/C4/C1_Context.md)
