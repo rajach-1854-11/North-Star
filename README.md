@@ -1,4 +1,4 @@
-Just noticed - CI pipeline test fail due to removed env file not code error. please verify
+Just noticed - CI pipeline test fail due to removed env file not code error. Please verify
 
 # North Star Architecture & Experience Compendium
 
