@@ -1,3 +1,5 @@
+Just noticed - CI pipeline test fail due to removed env file not code error. please verify.
+
 # North Star Architecture & Experience Compendium
 
 This comprehensive README unifies the architecture overview, technical deep dive, and UX feature catalogue for North Star. You can regenerate the full pack from source any time with `scripts/generate_arch_docs.py`.
